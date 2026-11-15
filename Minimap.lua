@@ -1,8 +1,12 @@
--- Forever Loot Journal - Casino-style minimap button
+-- Forever Loot Journal - outside-round minimap button v1.1.8
 -- Built after login, as in ForeverCasino/UI.lua and LayoutFix.lua.
 local addonName, FLJ = ...
 local DEFAULT_ANGLE = 315
-local RADIUS = 81
+-- Radius follows the actual minimap frame size; never bury the icon inside the map.
+local function Radius()
+    local width = Minimap and Minimap:GetWidth() or 180
+    return math.max(128, width / 2 + 34)
+end
 local button
 
 local function Settings()
@@ -11,8 +15,8 @@ local function Settings()
     if type(db.ui) ~= "table" then db.ui = {} end
     local ui = db.ui
     -- One-time recovery from the previous invisible minimap launcher.
-    if not ui.minimapCasinoFix117 then
-        ui.minimapCasinoFix117 = true
+    if not ui.minimapOutside118 then
+        ui.minimapOutside118 = true
         ui.minimapHidden = false
         ui.minimapAngle = DEFAULT_ANGLE
     end
@@ -25,8 +29,9 @@ local function Position()
     if not ui then return end
     local a = math.rad(tonumber(ui.minimapAngle) or DEFAULT_ANGLE)
     button:ClearAllPoints()
+    local radius = Radius()
     button:SetPoint("CENTER", Minimap, "CENTER",
-        math.cos(a) * RADIUS, math.sin(a) * RADIUS)
+        math.cos(a) * radius, math.sin(a) * radius)
     button:SetShown(not ui.minimapHidden)
 end
 
@@ -46,8 +51,8 @@ local function CursorAngle()
 end
 
 local function BuildMinimap()
-    -- Mirrors the working Casino button: parent to Minimap, native icon,
-    -- tracking border as a transparent round frame, movable by drag.
+    -- Matches Casino's reliable button initialization and drag handlers,
+    -- but uses a transparent circular icon and a true outside radius.
     if not Minimap then return end
     if button then return end
     local m = _G.ForeverLootJournalMinimapButton
@@ -59,16 +64,12 @@ local function BuildMinimap()
     m:RegisterForClicks("LeftButtonUp")
     m:RegisterForDrag("LeftButton")
 
+    -- This 32-bit TGA has transparent corners and its own circular gold rim.
+    -- The previous rectangular WoW item icon was why the button looked square.
     local icon = m:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("CENTER")
-    icon:SetSize(22, 22)
-    icon:SetTexture("Interface\\Icons\\INV_Chest_Chain_05")
+    icon:SetAllPoints(m)
+    icon:SetTexture("Interface\\AddOns\\ForeverLootJournal\\Media\\minimap_button")
     m.icon = icon
-
-    local border = m:CreateTexture(nil, "OVERLAY")
-    border:SetAllPoints()
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    m.border = border
 
     m:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
