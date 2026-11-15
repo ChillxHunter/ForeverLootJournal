@@ -78,6 +78,7 @@ local function Fire(event,...)
         if frame.events[event] and frame.OnEvent then frame.OnEvent(frame,event,...) end
     end
 end
+_G.FLJTestFire=Fire -- used by the separate registration-filter integration test
 Fire("ADDON_LOADED","ForeverLootJournal")
 Fire("PLAYER_LOGIN")
 Fire("PLAYER_ENTERING_WORLD")
