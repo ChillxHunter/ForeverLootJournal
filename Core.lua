@@ -1,4 +1,4 @@
--- Forever Loot Journal 1.1.2 - World of Warcraft: Forever (interface 16001)
+-- Forever Loot Journal 1.1.4 - World of Warcraft: Forever (interface 16001)
 -- Account-wide saved loot archive; no communication with other addons or players.
 local addonName, FLJ = ...
 _G.ForeverLootJournal = FLJ
@@ -201,7 +201,14 @@ local function SetWinner(rec, name, class)
     name=Resolve(name)
     if not name then return end
     local p=EnsurePlayer(name,{class=class, zone=Zone()})
-    if rec.winner~=name then
+    if Key(rec.winner)~=Key(name) then
+        -- Correct the previous owner's count if the server revises a roll winner.
+        if rec.winner then
+            local previous=DB.players[PlayerKey(rec.winner)]
+            if previous and (previous.lootCount or 0)>0 then
+                previous.lootCount=previous.lootCount-1
+            end
+        end
         rec.winner=name
         if p then p.lootCount=(p.lootCount or 0)+1 end
     end
@@ -210,7 +217,9 @@ local function RecentMatch(info,winner,seconds,requireRoll,withoutReceipt)
     local now=Now()
     for _,r in ipairs(DB.records) do
         if now-(r.time or 0) > (seconds or 15) then break end
-        if r.itemID==info.id and (not winner or (r.winner and Key(ShortName(r.winner))==Key(ShortName(winner))))
+        local sameItem=(info.id and r.itemID==info.id)
+            or (type(info.link)=="string" and info.link~="" and r.link==info.link)
+        if sameItem and (not winner or (r.winner and Key(ShortName(r.winner))==Key(ShortName(winner))))
           and (not requireRoll or r.source=="Group roll") and (not withoutReceipt or not r.receipt) then
             return r
         end
