@@ -10,10 +10,12 @@ on:
       - 'tools/test_storage.lua'
       - 'tools/test_crafting.lua'
       - 'tools/test_rarity.lua'
+      - 'tools/test_social.lua'
       - '.github/workflows/addon-validation.yml'
   pull_request:
     paths:
       - '*.lua'
+      - 'tools/test_social.lua'
       - '*.toc'
       - 'Media/**'
       - 'tools/test_minimap.lua'
@@ -32,7 +34,7 @@ jobs:
       - name: Parse every addon Lua file
         run: |
           set -eu
-          for file in Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua; do
+          for file in Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua; do
             echo "Checking $file"
             luac5.1 -p "$file"
           done
@@ -46,6 +48,8 @@ jobs:
         run: lua5.1 tools/test_crafting.lua
       - name: Test rarity registration without deleting old records
         run: lua5.1 tools/test_rarity.lua
+      - name: Test right-click player context menu
+        run: lua5.1 tools/test_social.lua
       - name: Check addon manifest and images
         run: |
           python3 - <<'PY'
@@ -81,6 +85,9 @@ jobs:
           assert 'SelectGearFilter("crafting")' in ui and 'MakeCraftingPane(frame)' in ui
           assert 'recipeID="loot-"' in ui and 'tonumber(r.classID)==9' in ui
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
+          assert 'r:RegisterForClicks("LeftButtonUp","RightButtonUp")' in ui
+          assert 'FLJ.ShowPlayerContextMenu(self,self.player)' in ui
+          assert 'if mouseButton=="RightButton" then' in ui
           assert 'SelectGearFilter("armor")' in ui and 'SelectGearFilter("weapons")' in ui
           assert 'frame:RegisterForDrag("LeftButton")' not in ui, 'Journal must be draggable only from title bar'
           print('Manifest, artwork and filter checks passed')
