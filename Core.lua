@@ -1,4 +1,4 @@
--- Forever Loot Journal 1.0.0 - World of Warcraft: Forever (interface 16001)
+-- Forever Loot Journal 1.1.2 - World of Warcraft: Forever (interface 16001)
 -- Account-wide saved loot archive; no communication with other addons or players.
 local addonName, FLJ = ...
 _G.ForeverLootJournal = FLJ
@@ -8,6 +8,7 @@ local deferred = {}       -- items whose item data is still being loaded
 local retries = {}        -- delayed history updates
 local groupNames = {}     -- case-folded full/short name -> canonical player key
 local inGroup = {}        -- canonical player key -> true
+local groupUnits = {}     -- canonical player key -> live unit token (not persisted)
 local initialized = false
 local initializingUI = false
 local MAX_RECORDS = 5000
@@ -116,7 +117,7 @@ end
 FLJ.Zone=Zone
 local function RegisterRoster()
     if not DB then return end
-    wipe(groupNames); wipe(inGroup)
+    wipe(groupNames); wipe(inGroup); wipe(groupUnits)
     local count = (GetNumGroupMembers and GetNumGroupMembers()) or 0
     local raid = IsInRaid and IsInRaid()
     local units={"player"}
@@ -134,6 +135,7 @@ local function RegisterRoster()
                 groupNames[Key(full)] = full
                 if not groupNames[Key(nm)] then groupNames[Key(nm)] = full end
                 inGroup[Key(full)] = true
+                groupUnits[Key(full)] = unit
                 local _,class=SafeCall(UnitClass,unit)
                 local race=SafeCall(UnitRace,unit)
                 local level=SafeCall(UnitLevel,unit)
@@ -145,6 +147,10 @@ local function RegisterRoster()
     Notify()
 end
 FLJ.RegisterRoster=RegisterRoster
+function FLJ.GetUnitForPlayer(name)
+    local canonical = Resolve(name)
+    return canonical and groupUnits[Key(canonical)] or nil
+end
 function FLJ.GetPlayers()
     if not DB then return {} end
     local result={}
