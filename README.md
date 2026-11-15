@@ -1,5 +1,24 @@
 # Forever Loot Journal
 
+## v1.1.9 – cross-zone party and raid loot synchronization
+
+**New:** When two or more party/raid members run Forever Loot Journal v1.1.9, the addon can send newly looted armor and weapons to other members over WoW's built-in addon communication channel. It works even when the characters are in **different zones, maps, or instances**, as long as the game allows party/raid addon messages between them.
+
+- Each player shares **their own** newly received equipment; it does not read distant players' inventory.
+- Receivers record the item's unique item string, owner, zone, equipment type, and available equipment stats. Item tooltips may take time to populate if the receiver has not cached the item.
+- Repeated addon transmissions are deduplicated, and only current party/raid members' messages are accepted.
+- Nearby members without the addon can still be recorded through ordinary local loot messages; **distant players without the addon cannot be tracked reliably**.
+- Only gear looted **after** both players have installed the addon and are grouped can be shared; existing history is not automatically retrieved.
+- Group roll numbers/choices are still recorded only when the normal loot history is visible on your own client; remote loot sync does **not** guarantee another player's full roll history.
+- Sync is enabled by default for grouped characters and can be disabled at any time.
+
+**Commands:** `/flj sync` or `/flj sync status` shows the sync state, channel, and recently detected addon users. `/flj sync check` asks the group to announce the addon. `/flj sync off` or `/flj sync on` turns sharing off or on.
+
+**Testing:** Have both players install v1.1.9, join the same party, stand in different zones, use `/flj sync check` and then loot a weapon or armor item. On the other character, open `/flj` and check the archived records.
+
+**Install:** Download the [v1.1.9 installable ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.1.9/ForeverLootJournal.zip), which extracts into `ForeverLootJournal/` without `-main`. Exit WoW before replacing the old addon directory. Leave the `WTF` SavedVariables untouched to keep your saved log.
+
+
 ## Version 1.1.8 – fixed circular minimap icon and outside positioning
 
 - Fixed the icon being square: added a custom **32-bit TGA** with transparent corners and an integrated circular gold rim.
@@ -69,7 +88,7 @@ The minimap launcher now follows the **working Forever Casino button implementat
 **To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
 
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.8
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.9
 
 INSTALL
 -------
