@@ -50,6 +50,14 @@ jobs:
               assert data[2] == 2, f"Unexpected TGA format: {image}"
               width, height = unpack('<HH', data[12:16])
               assert width and height, f"Invalid TGA dimensions: {image}"
+          icon = Path('Media/minimap_button.tga').read_bytes()
+          assert icon[2] == 2 and icon[16] == 32, "Minimap button must be 32-bit TGA"
+          width, height = unpack('<HH', icon[12:16])
+          assert len(icon) == 18 + width * height * 4, "Truncated minimap artwork"
+          assert icon[17] & 0x0F == 8, "Minimap art requires 8-bit transparency"
+          assert icon[18 + 3] == 0, "Minimap artwork has an opaque square corner"
+          center_alpha = icon[18 + (height//2 * width + width//2)*4 + 3]
+          assert center_alpha == 255, "Minimap artwork is transparent in the center"
           ui = Path('UI.lua').read_text(encoding='utf-8')
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
           assert 'SelectGearFilter("armor")' in ui and 'SelectGearFilter("weapons")' in ui
