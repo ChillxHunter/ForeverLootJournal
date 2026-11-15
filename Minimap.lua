@@ -1,11 +1,18 @@
--- Forever Loot Journal - outside-round minimap button v1.1.8
+-- Forever Loot Journal - standard-size round minimap button v1.2.3
 -- Built after login, as in ForeverCasino/UI.lua and LayoutFix.lua.
 local addonName, FLJ = ...
 local DEFAULT_ANGLE = 315
--- Radius follows the actual minimap frame size; never bury the icon inside the map.
-local function Radius()
+local BUTTON_SIZE = 30
+-- Other addon buttons sit on the minimap rim, not far beyond it.
+local DEFAULT_EDGE_OFFSET = 7
+local MIN_EDGE_OFFSET, MAX_EDGE_OFFSET = -4, 20
+local function ClampOffset(value)
+    return math.max(MIN_EDGE_OFFSET,math.min(MAX_EDGE_OFFSET,
+        tonumber(value) or DEFAULT_EDGE_OFFSET))
+end
+local function Radius(ui)
     local width = Minimap and Minimap:GetWidth() or 180
-    return math.max(128, width / 2 + 34)
+    return math.max(55,width / 2 + ClampOffset(ui and ui.minimapEdgeOffset))
 end
 local button
 
@@ -20,6 +27,9 @@ local function Settings()
         ui.minimapHidden = false
         ui.minimapAngle = DEFAULT_ANGLE
     end
+    if ui.minimapEdgeOffset==nil then
+        ui.minimapEdgeOffset=DEFAULT_EDGE_OFFSET
+    end
     return ui
 end
 
@@ -29,7 +39,7 @@ local function Position()
     if not ui then return end
     local a = math.rad(tonumber(ui.minimapAngle) or DEFAULT_ANGLE)
     button:ClearAllPoints()
-    local radius = Radius()
+    local radius = Radius(ui)
     button:SetPoint("CENTER", Minimap, "CENTER",
         math.cos(a) * radius, math.sin(a) * radius)
     button:SetShown(not ui.minimapHidden)
@@ -43,23 +53,28 @@ local function CursorAngle()
     local mx, my = GetCursorPosition()
     local dx, dy = mx / scale - cx, my / scale - cy
     if math.abs(dx) + math.abs(dy) < 0.01 then return nil end
-    if math.atan2 then return math.deg(math.atan2(dy, dx)) end
-    if math.abs(dx) < 0.001 then return dy >= 0 and 90 or 270 end
+    -- Drag the button along the rim, with a small adjustable in/out offset.
+    local edgeOffset=ClampOffset(math.sqrt(dx*dx+dy*dy)-
+        (Minimap:GetWidth() or 180)/2)
+    if math.atan2 then return math.deg(math.atan2(dy, dx)),edgeOffset end
+    if math.abs(dx) < 0.001 then
+        return (dy >= 0 and 90 or 270),edgeOffset
+    end
     local a = math.atan(dy / dx)
     if dx < 0 then a = a + math.pi end
-    return math.deg(a)
+    return math.deg(a),edgeOffset
 end
 
 local function BuildMinimap()
-    -- Matches Casino's reliable button initialization and drag handlers,
-    -- but uses a transparent circular icon and a true outside radius.
+    -- Matches Casino's regular 32px minimap buttons and circular rim;
+    -- the dark chest TGA has its own small bronze border and alpha corners.
     if not Minimap then return end
     if button then return end
     local m = _G.ForeverLootJournalMinimapButton
         or CreateFrame("Button", "ForeverLootJournalMinimapButton", Minimap)
     m:SetParent(Minimap)
-    m:SetSize(34, 34)
-    m:SetFrameStrata("HIGH")
+    m:SetSize(BUTTON_SIZE, BUTTON_SIZE)
+    m:SetFrameStrata("MEDIUM")
     m:SetFrameLevel(Minimap:GetFrameLevel() + 6)
     m:RegisterForClicks("LeftButtonUp")
     m:RegisterForDrag("LeftButton")
@@ -75,7 +90,8 @@ local function BuildMinimap()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("Forever Loot Journal", 1, .80, .35)
         GameTooltip:AddLine("Click: open / close journal", 1, 1, 1)
-        GameTooltip:AddLine("Drag: reposition around minimap", .78, .82, .9)
+        GameTooltip:AddLine("Drag: move around the minimap rim", .78, .82, .9)
+        GameTooltip:AddLine("Drag a little in/out to fine-tune position", .78, .82, .9)
         GameTooltip:Show()
     end)
     m:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -89,10 +105,11 @@ local function BuildMinimap()
         self._fljIgnoreClick = true
         GameTooltip:Hide()
         self:SetScript("OnUpdate", function()
-            local angle = CursorAngle()
+            local angle,edgeOffset = CursorAngle()
             local ui = Settings()
             if ui and angle then
                 ui.minimapAngle = angle
+                ui.minimapEdgeOffset = edgeOffset
                 Position()
             end
         end)
@@ -138,6 +155,7 @@ if previousSlash then
             local ui = Settings()
             if ui then
                 ui.minimapAngle = DEFAULT_ANGLE
+                ui.minimapEdgeOffset = DEFAULT_EDGE_OFFSET
                 ui.minimapHidden = false
             end
             FLJ.UpdateMinimapButton()
@@ -150,6 +168,7 @@ if previousSlash then
                 .." visible="..tostring(button and button:IsVisible())
                 .." minimap="..tostring(Minimap ~= nil)
                 .." angle="..tostring(ui and ui.minimapAngle)
+                .." edgeOffset="..tostring(ui and ui.minimapEdgeOffset)
                 .." hidden="..tostring(ui and ui.minimapHidden))
         else
             previousSlash(message)
