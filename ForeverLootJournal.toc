@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: |cffffd76aForever Loot Journal|r
+## Notes: Dungeon Journal-style party loot archive with detailed Need/Greed/Pass rolls and player history for WoW Forever.
+## Author: Custom standalone addon
+## Version: 1.0.0
+## SavedVariables: ForeverLootJournalDB
+## IconTexture: Interface\Icons\INV_Chest_Chain_05
+Core.lua
+UI.lua
