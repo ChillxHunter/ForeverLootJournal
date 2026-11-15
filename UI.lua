@@ -2,7 +2,7 @@
 local addonName, FLJ = ...
 FLJ.UI = FLJ.UI or {}
 local UI = FLJ.UI
-local W, H = 1100, 770
+local W, H = 1100, 830
 local gold = {1, .80, .31}
 local parchment = {.91, .82, .62}
 local muted = {.63, .61, .55}
@@ -14,7 +14,7 @@ local frame, itemRows, playerRows, detail, dropdown, dropdownRows
 local searchBox, playerSearchBox, playerLabel, titleText, countText, listEmpty
 local tabButtons, filterButtons, clearPopup
 local ITEM_VISIBLE = 4
-local PLAYER_VISIBLE = 10
+local PLAYER_VISIBLE = 11
 local ITEM_ROW_HEIGHT = 57
 local PLAYER_ROW_HEIGHT = 40
 local TEXTURE = "Interface\\AddOns\\ForeverLootJournal\\Media\\"
@@ -319,7 +319,7 @@ local function MakePlayerRow(parent,index)
     return r
 end
 local function MakeDetail(parent)
-    local p=Panel(parent,288,506,797,216,{.079,.073,.064,1})
+    local p=Panel(parent,288,506,797,280,{.079,.073,.064,1})
     local hdr=p:CreateTexture(nil,"ARTWORK")
     hdr:SetTexture(TEXTURE.."detail")
     hdr:SetPoint("TOPLEFT",1,-1); hdr:SetPoint("TOPRIGHT",-1,-1); hdr:SetHeight(37)
@@ -339,7 +339,7 @@ local function MakeDetail(parent)
     p.statHead=Label(p,"ITEM STATS",11,gold)
     p.statHead:SetPoint("TOPLEFT",p,"TOPLEFT",14,-143)
     p.stats={}
-    for i=1,3 do
+    for i=1,6 do
         local tx=Label(p,"",11,parchment)
         tx:SetPoint("TOPLEFT",p,"TOPLEFT",14,-161-(i-1)*18)
         tx:SetWidth(379)
@@ -355,7 +355,7 @@ local function MakeDetail(parent)
     p.rollStatus:SetPoint("TOPLEFT",p,"TOPLEFT",424,-76)
     p.rollStatus:SetWidth(345)
     p.rollLines={}
-    for i=1,6 do
+    for i=1,9 do
         local tx=Label(p,"",11,parchment)
         tx:SetPoint("TOPLEFT",p,"TOPLEFT",424,-97-(i-1)*18)
         tx:SetWidth(356)
@@ -363,8 +363,8 @@ local function MakeDetail(parent)
     end
     ScrollWheel(p,function(delta)
         local record=GetSelected()
-        if record and record.rolls and #record.rolls > 6 then
-            detailRollOffset=math.max(0,math.min(#record.rolls-6,detailRollOffset-delta*2))
+        if record and record.rolls and #record.rolls > 9 then
+            detailRollOffset=math.max(0,math.min(#record.rolls-9,detailRollOffset-delta*2))
             UI.Refresh()
         end
     end)
@@ -422,7 +422,7 @@ local function DetailRefresh()
     if #rolls==0 then
         detail.rollStatus:SetText(rec.source=="Group roll" and "Awaiting roll choices..." or "No group roll recorded for this item")
     else
-        detail.rollStatus:SetText(tostring(#rolls).." participant(s)  |  "..(rec.status or "Recorded")..(#rolls>6 and "  |  Scroll to see all" or ""))
+        detail.rollStatus:SetText(tostring(#rolls).." participant(s)  |  "..(rec.status or "Recorded")..(#rolls>9 and "  |  Scroll to see all" or ""))
     end
     table.sort(rolls,function(a,b)
         if (not not a.winner) ~= (not not b.winner) then return a.winner end
@@ -585,7 +585,7 @@ local function MakeFrame()
     sub:SetPoint("TOP",frame,"TOP",0,-84);sub:SetWidth(550)
     local close=Button(frame,1053,19,27,25,"X",function()frame:Hide()end)
     close.label:SetTextColor(1,.30,.20)
-    local side=Panel(frame,13,124,260,598,{.094,.073,.051,1})
+    local side=Panel(frame,13,124,260,662,{.094,.073,.051,1})
     local sh=Label(side,"PARTY & RAID MEMBERS",14,gold)
     sh:SetPoint("TOPLEFT",side,"TOPLEFT",12,-12)
     local sdesc=Label(side,"Current party + everyone recorded",10,muted)
@@ -608,7 +608,7 @@ local function MakeFrame()
     Border(legendDot,.23,.3,.18,1)
     local liveText=Label(side,"Green = currently in your group",10,{.62,.79,.53})
     liveText:SetPoint("LEFT",legendDot,"RIGHT",6,0)
-    local roster=Panel(side,0,170,260,419,{.067,.061,.049,1})
+    local roster=Panel(side,0,170,260,470,{.067,.061,.049,1})
     playerRows={}
     for i=1,PLAYER_VISIBLE do playerRows[i]=MakePlayerRow(roster,i) end
     ScrollWheel(roster,function(delta)
@@ -647,7 +647,7 @@ local function MakeFrame()
         UI.Refresh()
     end)
     detail=MakeDetail(frame)
-    local footer=Panel(frame,13,733,W-26,26,{.083,.067,.046,1})
+    local footer=Panel(frame,13,796,W-26,26,{.083,.067,.046,1})
     local foot=Label(footer,"/flj to open   |   Mouse wheel to scroll   |   Shift-click item to link it   |   Account-wide saved history",11,parchment,"CENTER")
     foot:SetPoint("CENTER",footer,"CENTER",0,0)
     foot:SetWidth(W-48)
@@ -660,7 +660,11 @@ local function FitWindow()
     local scale=math.min(1,availableWidth/W,availableHeight/H)
     frame:SetScale(scale)
     frame:ClearAllPoints()
-    frame:SetPoint("CENTER",UIParent,"CENTER",0,0)
+    -- Bias the journal upward when space allows; this keeps the extended item
+    -- details and footer further from the bottom of the physical display.
+    local spare=(UIParent:GetHeight() or H) - H*scale
+    local upward=math.max(0,math.min(28,(spare/2)-8))
+    frame:SetPoint("CENTER",UIParent,"CENTER",0,upward)
 end
 function FLJ.Toggle(players)
     if not frame then MakeFrame() end
