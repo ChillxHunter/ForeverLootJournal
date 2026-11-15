@@ -1,5 +1,17 @@
 # Forever Loot Journal
 
+## Version 1.1.6 – minimap visibility and ZIP folder fix
+
+- Restored the round minimap chest icon with a simpler implementation that is not clipped by the minimap.
+- Migrates saved minimap settings once so the previously missing icon is visible again.
+- Left-click opens the journal; left-drag moves the icon around the minimap; the angle persists.
+- No square black background or potentially incompatible circular masks.
+- The new packaged ZIP extracts to **ForeverLootJournal/** directly. Do not use GitHub's default "Code > Download ZIP" if you want to avoid "ForeverLootJournal-main".
+- `/flj reseticon` moves a missing icon to its default location, and `/flj iconstatus` reports visibility state.
+
+**Preferred download:** [ForeverLootJournal.zip from the latest Release](https://github.com/ChillxHunter/ForeverLootJournal/releases/latest/download/ForeverLootJournal.zip).
+
+
 ## Version 1.1.5 – minimap recovery and expanded item details
 
 - Restores the minimap marker for users whose previous version hid or misplaced it. A one-time position reset moves the marker to the lower-right edge.
@@ -34,7 +46,7 @@
 **To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
 
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.5
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.6
 
 INSTALL
 -------
