@@ -1,6 +1,16 @@
 # Forever Loot Journal
 
-## Version 1.1.2 – screen-fit and portrait fixes
+## Version 1.1.4 – equipment filtering and minimap fixes
+
+- Armor, Weapons, and All Equipment buttons now register clicks explicitly, show an active indicator, and update the matching-item count.
+- Journal dragging is confined to the title bar so it doesn't capture button clicks.
+- The item-details selection follows the active equipment filter rather than showing an excluded item.
+- Existing records missing their equipment-class ID are reclassified when item data is available.
+- Minimap launcher now uses a circular-masked icon, no opaque square backdrop, and stays outside the minimap. Drag it to reposition; `/flj reseticon` restores its position.
+- Corrected possible loot winner tally changes and ambiguous duplicate record matching.
+- All saved loot history remains in SavedVariables.
+
+## Previous: version 1.1.2 – screen-fit and portrait fixes
 
 - Journal scales to fit the available screen height and width, including the full item-details panel and footer.
 - Footer now has a separate bottom panel so its text is not covered by the item-details panel.
@@ -11,7 +21,7 @@
 **To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
 
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.2
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.4
 
 INSTALL
 -------
@@ -23,7 +33,7 @@ INSTALL
      ...\Interface\AddOns\ForeverLootJournal\ForeverLootJournal.toc
 4. Relaunch Forever and enable the addon in the AddOns menu.
 5. Type /flj in chat or left-click the round chest icon beside the minimap.
-6. Hold Alt and drag the chest icon to reposition it around the minimap.
+6. Drag the chest icon with the left mouse button to reposition it around the minimap.
 7. Your minimap icon position is saved automatically between sessions.
 
 FEATURES
