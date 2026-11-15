@@ -6,6 +6,7 @@ on:
       - '*.toc'
       - 'Media/**'
       - 'tools/test_minimap.lua'
+      - 'tools/test_sync.lua'
       - '.github/workflows/addon-validation.yml'
   pull_request:
     paths:
@@ -28,12 +29,14 @@ jobs:
       - name: Parse every addon Lua file
         run: |
           set -eu
-          for file in Core.lua UI.lua Minimap.lua; do
+          for file in Core.lua UI.lua Minimap.lua Sync.lua; do
             echo "Checking $file"
             luac5.1 -p "$file"
           done
       - name: Test minimap launcher behavior
         run: lua5.1 tools/test_minimap.lua
+      - name: Test cross-zone party loot synchronization
+        run: lua5.1 tools/test_sync.lua
       - name: Check addon manifest and images
         run: |
           python3 - <<'PY'
