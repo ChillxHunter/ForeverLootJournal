@@ -1,4 +1,4 @@
--- Forever Loot Journal 1.2.1 - World of Warcraft: Forever (interface 16001)
+-- Forever Loot Journal 1.2.2 - World of Warcraft: Forever (interface 16001)
 -- Account-wide saved loot archive with optional party sync via Sync.lua.
 local addonName, FLJ = ...
 _G.ForeverLootJournal = FLJ
@@ -59,6 +59,53 @@ function FLJ.SetStoragePreset(key)
     if FLJ.UI and FLJ.UI.Refresh then FLJ.UI.Refresh() end
     return true,removed
 end
+-- Registration preferences control ONLY future records. Never prune older
+-- entries when the user changes a rarity toggle.
+local RARITIES={
+    {id=0,label="Poor",       color={.56,.56,.56}},
+    {id=1,label="Common",     color={.97,.97,.97}},
+    {id=2,label="Uncommon",   color={.12,1,.12}},
+    {id=3,label="Rare",       color={.10,.50,1}},
+    {id=4,label="Epic",       color={.73,.34,1}},
+    {id=5,label="Legendary",  color={1,.50,.07}},
+    {id=6,label="Artifact",   color={.90,.80,.45}},
+    {id=7,label="Heirloom",   color={.12,.84,.80}},
+}
+FLJ.RarityOptions=RARITIES
+local function RarityPreferences()
+    if not DB or type(DB.ui)~="table" then return nil end
+    if type(DB.ui.rarityRegistration)~="table" then DB.ui.rarityRegistration={} end
+    return DB.ui.rarityRegistration
+end
+function FLJ.IsRarityEnabled(id)
+    id=tonumber(id)
+    local preferences=RarityPreferences()
+    if id==nil or id<0 or id>7 or id%1~=0 then return true end
+    return not preferences or preferences[id]~=false
+end
+function FLJ.SetRarityEnabled(id,enabled)
+    id=tonumber(id)
+    if not id or id%1~=0 or id<0 or id>7 or type(enabled)~="boolean" then return false end
+    local preferences=RarityPreferences()
+    if not preferences then return false end
+    preferences[id]=enabled
+    -- Important: do not call TrimRecords(), ClearRecords(), or mutate DB.records.
+    return true
+end
+local function RegistrationAllowed(quality)
+    local q=tonumber(quality)
+    if q~=nil and q>=0 and q<=7 then
+        return FLJ.IsRarityEnabled(q)
+    end
+    -- If all rarities are enabled, an uncached item is safe to register.
+    -- Otherwise wait for item quality to load instead of guessing "Common".
+    local prefs=RarityPreferences()
+    if prefs then
+        for i=0,7 do if prefs[i]==false then return nil end end
+    end
+    return true
+end
+
 local CLASS_ARMOR, CLASS_WEAPON, CLASS_RECIPE = 4, 2, 9
 local function Plain(v)
     if issecretvalue and issecretvalue(v) then return nil end
@@ -90,7 +137,7 @@ local function ItemInfo(link)
     local name = n or (type(link)=="string" and link:match("|h%[(.-)%]|h"))
     return {
         id=itemID or (type(link)=="string" and tonumber(link:match("item:(%d+)"))),
-        link=fullLink or link, name=name or "Unknown item", quality=rarity or (type(link)=="string" and tonumber(link:match("|cnIQ(%d+)"))) or 1,
+        link=fullLink or link, name=name or "Unknown item", quality=rarity or (type(link)=="string" and tonumber(link:match("|cnIQ(%d+)"))),
         level=lvl, requiredLevel=req, type=typ or instantTyp, subtype=sub or instantSub,
         slot=loc or instantLoc, icon=icon or instantIcon or "Interface\\Icons\\INV_Misc_QuestionMark",
         classID=classID or instantClass, subclassID=subID or instantSubID,
@@ -233,6 +280,7 @@ local function SetMetadata(rec, info)
     if #latestStats>0 or not rec.stats then rec.stats=latestStats end
 end
 local function AddRecord(info, source)
+    if RegistrationAllowed(info and info.quality)~=true then return nil end
     local rec={ id=LatestID(), time=Now(), zone=Zone(), source=source or "Loot", status="Received", rolls={}}
     SetMetadata(rec,info)
     table.insert(DB.records,1,rec)
@@ -288,6 +336,8 @@ function FLJ.ReceiveSharedLoot(sender, serial, itemString, statedClass, remoteZo
     end
     local info=Gear(itemString) or ItemInfo(itemString)
     if info.classID and info.classID~=classID then return false end
+    local register=RegistrationAllowed(info.quality)
+    if register~=true then return false end
     info.id=info.id or remoteID
     info.classID=classID
     local rec=RecentMatch(info,who,6,false,false)
@@ -356,15 +406,26 @@ local function TrackLootMessage(msg)
         if id then deferred[#deferred+1]={link=link,player=player,time=Now()} end
         return
     end
-    -- The roll event knows all players and precise roll values. Attach this receipt to
-    -- that record instead of displaying the same drop twice.
+    -- Update existing roll records even if their rarity is now excluded.
+    -- New receipts obey the registration switches.
     local rec=RecentMatch(item,player,60,true,true)
+    if not rec then
+        local allowed=RegistrationAllowed(item.quality)
+        if allowed==nil then
+            if item.id and C_Item and C_Item.RequestLoadItemDataByID then
+                SafeCall(C_Item.RequestLoadItemDataByID,item.id)
+            end
+            deferred[#deferred+1]={link=link,player=player,time=Now()}
+            return
+        elseif allowed==false then return end
+    end
     if rec then
         rec.receipt=true; rec.status="Received"
         SetMetadata(rec,item)
         SetWinner(rec,player)
     else
         rec=AddRecord(item,"Loot message")
+        if not rec then return end
         rec.receipt=true
         SetWinner(rec,player)
     end
@@ -379,15 +440,20 @@ local function RunDeferred()
             local info=Gear(p.link)
             if info then
                 local rec=RecentMatch(info,p.player,60,true,true)
+                if not rec then
+                    local allowed=RegistrationAllowed(info.quality)
+                    if allowed==nil then
+                        deferred[#deferred+1]=p
+                    elseif allowed==true then
+                        rec=AddRecord(info,"Loot message")
+                    end
+                end
                 if rec then
                     rec.receipt=true; rec.status="Received"
                     SetMetadata(rec,info); SetWinner(rec,p.player)
-                else
-                    rec=AddRecord(info,"Loot message")
-                    rec.receipt=true; SetWinner(rec,p.player)
-                end
-                if Key(Resolve(p.player))==Key(MyName()) and FLJ.SendSelfLoot then
-                    FLJ.SendSelfLoot(rec)
+                    if Key(Resolve(p.player))==Key(MyName()) and FLJ.SendSelfLoot then
+                        FLJ.SendSelfLoot(rec)
+                    end
                 end
             else deferred[#deferred+1]=p end
         end
@@ -420,7 +486,12 @@ local function ProcessHistory(encounterID,lootListKey)
         -- reuse that recent receipt instead of creating a duplicate row.
         local win=type(drop.winner)=="table" and (Plain(drop.winner.playerName) or (Plain(drop.winner.isSelf) and MyName()))
         rec=RecentMatch(item,win,25,false,false)
-        if not rec or (rec.rollSession and rec.rollSession~=sessionKey) then rec=AddRecord(item,"Group roll") end
+        if not rec or (rec.rollSession and rec.rollSession~=sessionKey) then
+            local allowed=RegistrationAllowed(item.quality)
+            if allowed~=true then return allowed==false end
+            rec=AddRecord(item,"Group roll")
+            if not rec then return true end
+        end
         recentRolls[sessionKey]=rec.id
         rec.rollSession=sessionKey
         rec.source="Group roll"
