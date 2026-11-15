@@ -2,6 +2,16 @@
 -- Simulates the WoW Forever Blizzard MenuUtil context-menu environment.
 local currentMenu
 local menuCalls=0
+local socialFrame
+function CreateFrame()
+    local f={events={}}
+    function f:RegisterEvent(name) self.events[name]=true end
+    function f:SetScript(name,callback) self[name]=callback end
+    socialFrame=f
+    return f
+end
+GetTime=function() return 500 end
+
 local function Root()
     local root={entries={}}
     function root:CreateTitle(text) self.title=text end
@@ -28,7 +38,9 @@ MenuUtil={CreateContextMenu=function(owner,generator)
 end}
 UnitFullName=function() return "Tester","Realm" end
 local friends,ignores={},{}
+local socialRequests=0
 C_FriendList={
+    ShowFriends=function() socialRequests=socialRequests+1 end,
     GetNumIgnores=function()
         local total=0
         for _ in pairs(ignores) do total=total+1 end
@@ -56,6 +68,14 @@ C_FriendList={
         ignores[name]=nil
         return true
     end,
+    DelIgnoreByIndex=function(index)
+        local names={}
+        for name in pairs(ignores) do names[#names+1]=name end
+        table.sort(names)
+        local entry=names[index]
+        if entry then ignores[entry]=nil end
+        return entry~=nil
+    end,
 }
 local partyInvites,guildInvites,whispers={},{},{}
 local canParty=true
@@ -73,6 +93,9 @@ print=function(message) notices[#notices+1]=message end
 
 local addon={}
 assert(loadfile("Social.lua"))("ForeverLootJournal",addon)
+assert(socialFrame and socialFrame.events.PLAYER_LOGIN and socialFrame.events.IGNORELIST_UPDATE)
+socialFrame.OnEvent(socialFrame,"PLAYER_LOGIN")
+assert(socialRequests==1,"must fetch live ignore list at login")
 local name="Ranger-Realm"
 local player={name=name,current=false}
 assert(addon.ShowPlayerContextMenu("playerrow",player))
@@ -111,12 +134,60 @@ assert(existingBlock and existingBlock.enabled,"pre-existing short-name ignore n
 assert(not currentMenu:Get("Block Player (Ignore)"),"already ignored player still shows Block")
 existingBlock.callback()
 assert(not ignores["Saint"],"unblock must use the stored ignore-list entry, not the displayed realm name")
+assert(socialRequests>=2,"removing a block should request updated social data")
 
 -- Conversely, never confuse two fully qualified names on different realms.
 ignores["Saint-AnotherRealm"]=true
 assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
 assert(currentMenu:Get("Block Player (Ignore)"),"different-realm player incorrectly treated as ignored")
 ignores["Saint-AnotherRealm"]=nil
+
+-- The Forever client may implement the secondary ignored-list API while
+-- IsIgnored is missing. It must still detect an existing ignore.
+ignores["Saint-Ramz"]=true
+local savedGetNum=C_FriendList.GetNumIgnores
+local savedGetName=C_FriendList.GetIgnoreName
+local savedIsIgnored=C_FriendList.IsIgnored
+local savedSecondary=C_FriendList.IsOnIgnoredList
+C_FriendList.GetNumIgnores=nil
+C_FriendList.GetIgnoreName=nil
+C_FriendList.IsIgnored=nil
+C_FriendList.IsOnIgnoredList=function(token)
+    return ignores[token] or false
+end
+assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
+assert(currentMenu:Get("Unblock Player"),
+    "secondary ignore API must detect previously ignored player even if first API is absent")
+currentMenu:Get("Unblock Player").callback()
+assert(not ignores["Saint-Ramz"],"secondary ignore API unblock failed")
+
+-- A failed/unavailable ignore-list lookup must never offer another Block
+-- button that could produce an unknown server friend response.
+C_FriendList.IsOnIgnoredList=nil
+assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
+assert(currentMenu:Get("Refresh Ignore Status"),
+    "uncertain ignore state must offer refresh, not Block Player")
+assert(not currentMenu:Get("Block Player (Ignore)"),
+    "unverified ignore status must never be treated as definitely unblocked")
+C_FriendList.GetNumIgnores=savedGetNum
+C_FriendList.GetIgnoreName=savedGetName
+C_FriendList.IsIgnored=savedIsIgnored
+C_FriendList.IsOnIgnoredList=savedSecondary
+
+-- A broken primary lookup returning false should not suppress a secondary
+-- successful lookup, even when the complete list API is unavailable.
+ignores["Saint-Ramz"]=true
+C_FriendList.GetNumIgnores=nil
+C_FriendList.GetIgnoreName=nil
+C_FriendList.IsIgnored=function() return false end
+C_FriendList.IsOnIgnoredList=function(name) return ignores[name]==true end
+assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
+assert(currentMenu:Get("Unblock Player"),"positive secondary lookup must outrank negative primary")
+C_FriendList.GetNumIgnores=savedGetNum
+C_FriendList.GetIgnoreName=savedGetName
+C_FriendList.IsIgnored=savedIsIgnored
+C_FriendList.IsOnIgnoredList=savedSecondary
+ignores["Saint-Ramz"]=nil
 
 local grouped={name=name,current=true}
 canGuild=false
