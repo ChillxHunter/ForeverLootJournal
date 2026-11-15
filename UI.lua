@@ -13,6 +13,9 @@ local selectedID, listOffset, playerOffset, detailRollOffset = nil, 0, 0, 0
 local frame, itemRows, playerRows, detail, dropdown, dropdownRows
 local searchBox, playerSearchBox, playerLabel, titleText, countText, listEmpty
 local tabButtons, filterButtons, clearPopup
+local craftingPane, lootListPanel, craftingRows, craftingCount, craftingDetail, craftingSearch
+local craftingQuery, craftingOffset, selectedCraftID, craftingMaterialsOffset = "",0,nil,0
+local CRAFT_VISIBLE=9
 local storageProfileButton, storageProfileMenu, storageProfileRows
 local ITEM_VISIBLE = 4
 local PLAYER_VISIBLE = 11
@@ -482,6 +485,168 @@ local function BuildDropdown(parent)
     end
     dropdown:Hide()
 end
+-- Stored profession recipes live outside loot record limits.
+local function CraftMatch(r)
+    if craftingQuery=="" then return true end
+    if Includes(r.name,craftingQuery) or Includes(r.profession,craftingQuery) then return true end
+    for who in pairs(r.knownBy or {}) do
+        if Includes(who,craftingQuery) then return true end
+    end
+    for _,material in ipairs(r.materials or {}) do
+        if Includes(material.name,craftingQuery) then return true end
+    end
+    return false
+end
+local function CraftList()
+    local craft=FLJ.Crafting
+    if not craft or not craft.GetRecipes then return {} end
+    local filtered={}
+    for _,recipe in ipairs(craft.GetRecipes()) do
+        if CraftMatch(recipe) then filtered[#filtered+1]=recipe end
+    end
+    return filtered
+end
+local function CraftingRefresh()
+    if not craftingPane or gearFilter~="crafting" then return end
+    local results=CraftList()
+    local maximum=math.max(0,#results-CRAFT_VISIBLE)
+    craftingOffset=math.min(maximum,math.max(0,craftingOffset))
+    local current
+    for _,r in ipairs(results) do
+        if selectedCraftID and r.recipeID==selectedCraftID then current=r;break end
+    end
+    if not current then
+        current=results[1]
+        selectedCraftID=current and current.recipeID or nil
+        craftingMaterialsOffset=0
+    end
+    craftingCount:SetText(#results.." matching recipes  |  Open professions to learn and scan")
+    titleText:SetText("CRAFTING ARCHIVE")
+    countText:SetText(#results.." learned recipes matching your search")
+    for i,row in ipairs(craftingRows) do
+        local recipe=results[i+craftingOffset]
+        row.recipe=recipe
+        if recipe then
+            row.icon:SetTexture(recipe.icon or placeholder)
+            row.name:SetText(recipe.name or "Unknown recipe")
+            row.meta:SetText(recipe.profession or "Unknown profession")
+            row.name:SetTextColor(Color(recipe.recipeID==selectedCraftID and gold or parchment))
+            row.highlight:SetShown(recipe.recipeID==selectedCraftID)
+            row:Show()
+        else row:Hide() end
+    end
+    if not current then
+        craftingDetail.icon:SetTexture(placeholder)
+        craftingDetail.name:SetText("No saved recipes yet")
+        craftingDetail.profession:SetText("Open your character's profession window")
+        craftingDetail.known:SetText("Learned recipes are saved automatically.")
+        craftingDetail.materialsTitle:SetText("MATERIALS")
+        for _,line in ipairs(craftingDetail.lines) do line:SetText("") end
+        return
+    end
+    craftingDetail.icon:SetTexture(current.icon or placeholder)
+    craftingDetail.icon.link=current.itemLink or current.link
+    craftingDetail.name:SetText(current.name)
+    craftingDetail.profession:SetText(current.profession or "Unknown profession")
+    local names={}
+    for who in pairs(current.knownBy or {}) do names[#names+1]=who end
+    table.sort(names)
+    craftingDetail.known:SetText("Known by: "..(#names>0 and table.concat(names,", ") or "Unknown"))
+    local mats=current.materials or {}
+    local maxOffset=math.max(0,#mats-#craftingDetail.lines)
+    craftingMaterialsOffset=math.min(maxOffset,math.max(0,craftingMaterialsOffset))
+    craftingDetail.materialsTitle:SetText("REQUIRED MATERIALS"..(#mats>#craftingDetail.lines and "  (scroll to see more)" or ""))
+    for i,line in ipairs(craftingDetail.lines) do
+        local mat=mats[i+craftingMaterialsOffset]
+        if mat then
+            local name=mat.name or (mat.itemID and ("Item #"..mat.itemID)) or "Material"
+            local extra=mat.optional and "  (optional)" or mat.alternatives and "  (or alternative)" or ""
+            line:SetText(tostring(mat.quantity or 1).."x  "..name..extra)
+        elseif i==1 and #mats==0 then
+            line:SetText("Ingredients unavailable. Open the profession to rescan.")
+        else line:SetText("") end
+    end
+end
+local function MakeCraftingPane(parent)
+    craftingPane=Panel(parent,284,241,803,545,{.083,.069,.054,1})
+    local heading=Label(craftingPane,"LEARNED CRAFTING RECIPES",15,gold)
+    heading:SetPoint("TOPLEFT",craftingPane,"TOPLEFT",13,-16)
+    craftingCount=Label(craftingPane,"Open a profession to scan",10,muted)
+    craftingCount:SetPoint("TOPLEFT",craftingPane,"TOPLEFT",13,-42)
+    craftingSearch=Edit(craftingPane,420,11,370,34,"Search recipes, profession, materials...",function(value)
+        craftingQuery=T(value)
+        craftingOffset=0
+        selectedCraftID=nil
+        CraftingRefresh()
+    end)
+    local listPanel=Panel(craftingPane,11,67,390,466,{.055,.049,.040,1})
+    local detailPanel=Panel(craftingPane,413,67,377,466,{.065,.056,.045,1})
+    craftingRows={}
+    for i=1,CRAFT_VISIBLE do
+        local row=CreateFrame("Button",nil,listPanel)
+        row:SetSize(372,47)
+        row:SetPoint("TOPLEFT",listPanel,"TOPLEFT",9,-8-(i-1)*50)
+        Fill(row,{.13,.112,.081,1})
+        Border(row,.33,.26,.15,1)
+        row.highlight=MakeTexture(row,"BORDER",{.63,.43,.16,.28})
+        row.highlight:SetAllPoints()
+        row.highlight:Hide()
+        row.icon=row:CreateTexture(nil,"ARTWORK")
+        row.icon:SetSize(36,36)
+        row.icon:SetPoint("LEFT",row,"LEFT",7,0)
+        row.name=Label(row,"",12,parchment)
+        row.name:SetPoint("TOPLEFT",row,"TOPLEFT",52,-5)
+        row.name:SetWidth(303)
+        row.meta=Label(row,"",10,muted)
+        row.meta:SetPoint("TOPLEFT",row,"TOPLEFT",52,-27)
+        row.meta:SetWidth(300)
+        row:RegisterForClicks("LeftButtonUp")
+        row:SetScript("OnClick",function(self)
+            if self.recipe then
+                selectedCraftID=self.recipe.recipeID
+                craftingMaterialsOffset=0
+                CraftingRefresh()
+            end
+        end)
+        craftingRows[i]=row
+    end
+    ScrollWheel(listPanel,function(delta)
+        craftingOffset=math.max(0,math.min(math.max(0,#CraftList()-CRAFT_VISIBLE),craftingOffset-delta*2))
+        CraftingRefresh()
+    end)
+    craftingDetail={}
+    craftingDetail.icon=Icon(detailPanel,14,15,53)
+    craftingDetail.name=Label(detailPanel,"Select a recipe",15,gold)
+    craftingDetail.name:SetPoint("TOPLEFT",detailPanel,"TOPLEFT",76,-21)
+    craftingDetail.name:SetWidth(285)
+    craftingDetail.profession=Label(detailPanel,"",12,parchment)
+    craftingDetail.profession:SetPoint("TOPLEFT",detailPanel,"TOPLEFT",14,-84)
+    craftingDetail.profession:SetWidth(340)
+    craftingDetail.known=Label(detailPanel,"",11,muted)
+    craftingDetail.known:SetPoint("TOPLEFT",detailPanel,"TOPLEFT",14,-108)
+    craftingDetail.known:SetWidth(344)
+    craftingDetail.known:SetHeight(22)
+    craftingDetail.materialsTitle=Label(detailPanel,"REQUIRED MATERIALS",12,gold)
+    craftingDetail.materialsTitle:SetPoint("TOPLEFT",detailPanel,"TOPLEFT",14,-151)
+    craftingDetail.lines={}
+    for i=1,13 do
+        local line=Label(detailPanel,"",11,parchment)
+        line:SetPoint("TOPLEFT",detailPanel,"TOPLEFT",15,-178-(i-1)*20)
+        line:SetWidth(343)
+        craftingDetail.lines[i]=line
+    end
+    ScrollWheel(detailPanel,function(delta)
+        local selected
+        for _,r in ipairs(CraftList()) do
+            if r.recipeID==selectedCraftID then selected=r;break end
+        end
+        local count=selected and #(selected.materials or {}) or 0
+        craftingMaterialsOffset=math.max(0,math.min(math.max(0,count-#craftingDetail.lines),craftingMaterialsOffset-delta))
+        CraftingRefresh()
+    end)
+    craftingPane:Hide()
+end
+
 local function RefreshFilters()
     for k,b in pairs(filterButtons or {}) do
         local chosen=gearFilter==k
@@ -491,7 +656,7 @@ local function RefreshFilters()
     end
 end
 local function SelectGearFilter(nextFilter)
-    if nextFilter~="all" and nextFilter~="armor" and nextFilter~="weapons" then return end
+    if nextFilter~="all" and nextFilter~="armor" and nextFilter~="weapons" and nextFilter~="crafting" then return end
     gearFilter=nextFilter
     selectedID=nil
     listOffset=0
@@ -588,7 +753,22 @@ end
 
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
+    local crafting=gearFilter=="crafting"
+    if lootListPanel then lootListPanel:SetShown(not crafting) end
+    if detail then detail:SetShown(not crafting) end
+    if craftingPane then craftingPane:SetShown(crafting) end
     local players=FilteredPlayers()
+    if crafting then
+        for i,r in ipairs(playerRows) do
+            local pl=players[i+playerOffset]
+            if pl then SetPlayerRow(r,pl) else r:Hide() end
+        end
+        CraftingRefresh()
+        DropdownRefresh()
+        RefreshFilters()
+        RefreshStorageProfile()
+        return
+    end
     local loot=FilteredLoot()
     local minPlayerOffset=math.max(0,#players-PLAYER_VISIBLE)
     if playerOffset>minPlayerOffset then playerOffset=minPlayerOffset end
@@ -729,12 +909,14 @@ local function MakeFrame()
     filterButtons.all=Button(filt,7,5,108,30,"All Equipment",function()SelectGearFilter("all")end)
     filterButtons.armor=Button(filt,121,5,96,30,"Armor",function()SelectGearFilter("armor")end)
     filterButtons.weapons=Button(filt,223,5,96,30,"Weapons",function()SelectGearFilter("weapons")end)
+    filterButtons.crafting=Button(filt,325,5,108,30,"Crafting",function()SelectGearFilter("crafting")end)
     Button(filt,568,5,112,30,"Refresh",function()
         if FLJ.RegisterRoster then FLJ.RegisterRoster() end
         UI.Refresh()
     end)
     Button(filt,686,5,107,30,"Clear log",function() FLJ.ShowClearConfirm() end)
     local list=Panel(frame,284,241,803,257,{.068,.057,.045,1})
+    lootListPanel=list
     itemRows={}
     for i=1,ITEM_VISIBLE do itemRows[i]=MakeItemRow(list,i) end
     listEmpty=Label(list,"No matching loot yet. Items appear after your group obtains weapons or armor.",13,muted,"CENTER")
@@ -745,6 +927,7 @@ local function MakeFrame()
         UI.Refresh()
     end)
     detail=MakeDetail(frame)
+    MakeCraftingPane(frame)
     local footer=Panel(frame,13,796,W-26,26,{.083,.067,.046,1})
     local foot=Label(footer,"/flj to open   |   Mouse wheel to scroll   |   Shift-click item to link it   |   Account-wide saved history",11,parchment,"CENTER")
     foot:SetPoint("CENTER",footer,"CENTER",0,0)
