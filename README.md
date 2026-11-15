@@ -1,5 +1,14 @@
 # Forever Loot Journal
 
+## v1.2.5 – correctly show Unblock Player for ignored characters
+
+When you right-click a character in the Party & Raid Members list, the Block option now checks **WoW's existing Ignore list**. If the character is already ignored, the menu displays **Unblock Player**. Clicking it removes the matching name from the actual Ignore list.
+
+This also handles the common situation where WoW stores an ignored player under a short character name but the journal displays `Name-Realm`. The addon will not confuse characters from two different explicitly named realms. Your saved loot and player history are unchanged.
+
+**Install:** [Forever Loot Journal v1.2.5 ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.5/ForeverLootJournal.zip) extracts to `ForeverLootJournal/` without `-main`. Exit WoW, replace the previous addon directory, then restart.
+
+
 ## Version 1.2.4 – right-click player actions
 
 **New:** Right-click any player in the **Party & Raid Members** list to open a WoW-native context menu with:
