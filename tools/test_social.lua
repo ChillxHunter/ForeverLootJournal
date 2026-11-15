@@ -91,6 +91,8 @@ ChatFrame_SendTell=function(name) whispers[#whispers+1]=name end
 local notices={}
 print=function(message) notices[#notices+1]=message end
 
+local slashFallbackCalls=0
+SlashCmdList={FOREVERLOOTJOURNAL=function() slashFallbackCalls=slashFallbackCalls+1 end}
 local addon={}
 assert(loadfile("Social.lua"))("ForeverLootJournal",addon)
 assert(socialFrame and socialFrame.events.PLAYER_LOGIN and socialFrame.events.IGNORELIST_UPDATE)
@@ -207,4 +209,12 @@ MenuUtil=nil
 assert(not addon.ShowPlayerContextMenu("playerrow",player),"client without MenuUtil should fail safely")
 assert(menuCalls==count,"fallback should not show invalid context menu")
 assert(#partyInvites==1 and #guildInvites==1,"disabled actions must not send invitations")
+SlashCmdList.FOREVERLOOTJOURNAL("ignorestatus Saint-Ramz")
+local foundDiagnostic=false
+for _,notice in ipairs(notices) do
+    if notice:find("Ignore check Saint-Ramz",1,true) then foundDiagnostic=true end
+end
+assert(foundDiagnostic,"ignorestatus diagnostic should print the server status")
+SlashCmdList.FOREVERLOOTJOURNAL("players")
+assert(slashFallbackCalls==1,"previous /flj command handlers must remain intact")
 io.write("Player social menu integration tests passed\n")
