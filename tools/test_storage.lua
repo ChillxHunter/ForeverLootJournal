@@ -27,9 +27,10 @@ assert(ok and removed==1 and #db.records==3000 and db.records[#db.records].id==2
 ok,removed=FLJ.SetStoragePreset("EXTREME")
 assert(ok and removed==0 and #db.records==3000,
     "increasing cap must not delete records")
--- Fill a larger archive and verify the 10000 cap without recomputing UI rows.
-for i=3002,10002 do
-    table.insert(db.records,1,{id=i,itemID=i,rolls={}})
+-- Build a larger archive in newest-first order, without costly head inserts.
+db.records={}
+for i=10002,2,-1 do
+    db.records[#db.records+1]={id=i,itemID=i,rolls={}}
 end
 assert(#db.records==10001)
 ok,removed=FLJ.SetStoragePreset("EXTREME")
