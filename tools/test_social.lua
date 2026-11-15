@@ -170,6 +170,8 @@ assert(not ignores["Saint-Ramz"],"secondary ignore API unblock failed")
 
 -- A failed/unavailable ignore-list lookup must never offer another Block
 -- button that could produce an unknown server friend response.
+-- Advance beyond the expiry of the earlier server confirmation.
+GetTime=function() return 900 end
 C_FriendList.IsOnIgnoredList=nil
 assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
 assert(currentMenu:Get("Refresh Ignore Status"),
