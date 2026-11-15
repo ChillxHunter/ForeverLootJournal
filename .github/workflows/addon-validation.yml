@@ -5,12 +5,14 @@ on:
       - '*.lua'
       - '*.toc'
       - 'Media/**'
+      - 'tools/test_minimap.lua'
       - '.github/workflows/addon-validation.yml'
   pull_request:
     paths:
       - '*.lua'
       - '*.toc'
       - 'Media/**'
+      - 'tools/test_minimap.lua'
       - '.github/workflows/addon-validation.yml'
 
 permissions:
@@ -30,6 +32,8 @@ jobs:
             echo "Checking $file"
             luac5.1 -p "$file"
           done
+      - name: Test minimap launcher behavior
+        run: lua5.1 tools/test_minimap.lua
       - name: Check addon manifest and images
         run: |
           python3 - <<'PY'
