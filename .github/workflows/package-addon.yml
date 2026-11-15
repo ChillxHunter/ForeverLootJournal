@@ -6,6 +6,7 @@ on:
     paths:
       - 'Core.lua'
       - 'UI.lua'
+      - 'Crafting.lua'
       - 'Minimap.lua'
       - 'ForeverLootJournal.toc'
       - 'README.md'
@@ -13,6 +14,7 @@ on:
       - 'tools/test_minimap.lua'
       - 'tools/test_sync.lua'
       - 'tools/test_storage.lua'
+      - 'tools/test_crafting.lua'
       - '.github/workflows/package-addon.yml'
   workflow_dispatch:
 
@@ -38,11 +40,13 @@ jobs:
           luac5.1 -p UI.lua
           luac5.1 -p Minimap.lua
           luac5.1 -p Sync.lua
+          luac5.1 -p Crafting.lua
           lua5.1 tools/test_minimap.lua
           lua5.1 tools/test_sync.lua
           lua5.1 tools/test_storage.lua
+          lua5.1 tools/test_crafting.lua
           mkdir -p dist/ForeverLootJournal
-          cp Core.lua UI.lua Minimap.lua Sync.lua ForeverLootJournal.toc dist/ForeverLootJournal/
+          cp Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua ForeverLootJournal.toc dist/ForeverLootJournal/
           cp -R Media dist/ForeverLootJournal/
           cp README.md dist/ForeverLootJournal/
           (
