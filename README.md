@@ -1,5 +1,18 @@
 # Forever Loot Journal
 
+## Version 1.2.7 – fixed repeat Ignore requests and "Saint Ramz" display mismatch
+
+- Matches WoW's server message name `Saint Ramz` to the journal's `Saint-Ramz`, without matching two different explicit realms.
+- When the game confirms `is now being ignored`, the right-click menu uses that verified response to display **Unblock Player**, even if the Ignore-list API has not updated yet.
+- Prevents another Block request while a previous Ignore action is awaiting the server response.
+- Stops sending `ShowFriends` refresh requests on every menu opening or every Block/Unblock click. Friends data still refreshes on login and when explicitly requested.
+- Still uses WoW's real Ignore list. No local permanent block database has been added.
+- Expanded Lua 5.1 regression tests cover async game confirmation, pending requests, and variants with spaces/hyphens.
+- `/flj ignorestatus Saint-Ramz` remains available if the game still returns inconsistent Ignore-list data.
+
+**Install:** [Download the v1.2.7 ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.7/ForeverLootJournal.zip), which extracts directly into `ForeverLootJournal/` without `-main`. Exit WoW, replace the old addon folder, and restart. Existing loot records and settings remain intact.
+
+
 ## Version 1.2.6 – fix previously ignored players still showing Block
 
 - Requests up-to-date WoW friend/ignore information after login, and checks the actual Ignore list whenever the right-click player menu opens.
