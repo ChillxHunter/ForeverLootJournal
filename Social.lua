@@ -308,6 +308,49 @@ function FLJ.ShowPlayerContextMenu(owner,player)
     return true
 end
 
+-- Diagnostic for a client whose ignore-list API does not return current data.
+-- Prints only the requested character, not the player's entire Ignore list.
+function Social.IgnoreStatus(name)
+    if type(name)~="string" or name=="" then
+        Notice("Usage: /flj ignorestatus Character-Realm")
+        return
+    end
+    local api=C_FriendList
+    local ignored,stored,index=Social.ResolveIgnore(name)
+    local count=SafeQuery(api and api.GetNumIgnores)
+    local primary=SafeQuery(api and api.IsIgnored,name)
+    local secondary=SafeQuery(api and api.IsOnIgnoredList,name)
+    local short=name:match("^([^-]+)%-")
+    local shortIgnored=short and SafeQuery(api and api.IsIgnored,short)
+    Notice("Ignore check "..name..
+        ": status="..(ignored==nil and "unknown" or tostring(ignored))..
+        ", entries="..tostring(count)..
+        ", IsIgnored="..tostring(primary)..
+        ", IsOnIgnoredList="..tostring(secondary)..
+        ", shortName="..tostring(shortIgnored)..
+        ", match="..tostring(stored)..
+        ", index="..tostring(index))
+end
+
+local priorSlash=SlashCmdList and SlashCmdList.FOREVERLOOTJOURNAL
+if priorSlash then
+    SlashCmdList.FOREVERLOOTJOURNAL=function(message)
+        local args=tostring(message or ""):match("^%s*(.-)%s*$")
+        local name=args:match("^ignorestatus%s+(.+)$")
+        if args=="ignorestatus" then
+            Notice("Usage: /flj ignorestatus Character-Realm")
+        elseif name then
+            Social.RefreshIgnoreList(true)
+            Social.IgnoreStatus(name)
+        else
+            priorSlash(message)
+            if args=="help" then
+                Notice("Ignore diagnostics: /flj ignorestatus Character-Realm")
+            end
+        end
+    end
+end
+
 -- Request WoW's friends/ignore data and listen for server-side ignore changes.
 -- Never create a separate, potentially incorrect addon block database.
 local events=CreateFrame("Frame")
