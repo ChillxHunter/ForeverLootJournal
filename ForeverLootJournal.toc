@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: |cffffd76aForever Loot Journal|r
-## Notes: Dungeon Journal-style party loot archive with detailed Need/Greed/Pass rolls and player history for WoW Forever.
+## Notes: Party loot and roll archive. Commands: /flj, /foreverloot, /flj players, /flj refresh, /flj clear, /flj showicon, /flj hideicon, /flj reseticon, /flj iconstatus, /flj help.
 ## Author: Custom standalone addon
-## Version: 1.1.6
+## Version: 1.1.7
 ## SavedVariables: ForeverLootJournalDB
 ## IconTexture: Interface\Icons\INV_Chest_Chain_05
 Core.lua
