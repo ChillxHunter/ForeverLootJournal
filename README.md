@@ -1,5 +1,17 @@
 # Forever Loot Journal
 
+## Version 1.2.6 – fix previously ignored players still showing Block
+
+- Requests up-to-date WoW friend/ignore information after login, and checks the actual Ignore list whenever the right-click player menu opens.
+- Checks all supported ignore-status APIs rather than relying on a single function that might be missing in WoW Forever.
+- For already ignored players, displays **Unblock Player** and removes the **exact existing Ignore-list entry by index** when supported.
+- When the game cannot verify an ignore status, shows **Refresh Ignore Status** rather than sending a potentially duplicate Block request.
+- The addon's local loot and player history is unchanged. There is no separate addon-side block database.
+- If the game still misreports an existing block, enter `/flj ignorestatus Character-Realm` (for example `/flj ignorestatus Saint-Ramz`) and share the printed diagnostics.
+
+**Install:** [Download v1.2.6](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.6/ForeverLootJournal.zip) from GitHub Releases, extracting to `ForeverLootJournal/` with no `-main` folder. Close WoW, replace the previous addon folder, and restart.
+
+
 ## v1.2.5 – correctly show Unblock Player for ignored characters
 
 When you right-click a character in the Party & Raid Members list, the Block option now checks **WoW's existing Ignore list**. If the character is already ignored, the menu displays **Unblock Player**. Clicking it removes the matching name from the actual Ignore list.
