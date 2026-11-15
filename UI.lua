@@ -573,10 +573,11 @@ local function BuildStorageProfileMenu(parent)
     Border(storageProfileMenu,.71,.52,.23,2)
     storageProfileRows={}
     for i,key in ipairs(FLJ.StoragePresetOrder or {}) do
-        local entry=FLJ.StoragePresets[key]
+        local profileKey=key
+        local entry=FLJ.StoragePresets[profileKey]
         local text=entry.label.."  -  "..FormatLimit(entry.limit).." saved"
         local b=Button(storageProfileMenu,6,5+(i-1)*37,231,33,text,function()
-            SelectStoragePreset(key)
+            SelectStoragePreset(profileKey)
         end)
         b:SetFrameLevel(storageProfileMenu:GetFrameLevel()+1)
         storageProfileRows[key]=b
