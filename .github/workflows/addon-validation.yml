@@ -9,6 +9,7 @@ on:
       - 'tools/test_sync.lua'
       - 'tools/test_storage.lua'
       - 'tools/test_crafting.lua'
+      - 'tools/test_rarity.lua'
       - '.github/workflows/addon-validation.yml'
   pull_request:
     paths:
@@ -43,6 +44,8 @@ jobs:
         run: lua5.1 tools/test_storage.lua
       - name: Test crafting recipe scanner
         run: lua5.1 tools/test_crafting.lua
+      - name: Test rarity registration without deleting old records
+        run: lua5.1 tools/test_rarity.lua
       - name: Check addon manifest and images
         run: |
           python3 - <<'PY'
@@ -70,6 +73,9 @@ jobs:
           ui = Path('UI.lua').read_text(encoding='utf-8')
           core = Path('Core.lua').read_text(encoding='utf-8')
           assert 'EXTREME!!' in core and 'limit=10000' in core
+          assert 'FLJ.RarityOptions=RARITIES' in core and 'RegistrationAllowed' in core
+          assert 'BuildRarityRegistration(frame)' in ui
+          assert 'Previously recorded items are never deleted.' in ui
           assert 'BuildStorageProfileMenu(frame)' in ui
           assert 'FOREVER_LOOT_JOURNAL_STORAGE_PROFILE' in ui
           assert 'SelectGearFilter("crafting")' in ui and 'MakeCraftingPane(frame)' in ui
