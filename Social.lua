@@ -1,4 +1,4 @@
--- Forever Loot Journal v1.2.6 - WoW Forever social menu.
+-- Forever Loot Journal v1.2.7 - WoW Forever social menu.
 -- Uses the live WoW ignore list, not a parallel addon-maintained block list.
 local addonName, FLJ = ...
 local Social={}
@@ -52,9 +52,17 @@ end
 -- Short form is accepted only when at least one name has no specified realm.
 -- Two explicit but different realms must NOT be treated as the same character.
 local function SameCharacterName(a,b)
+    if type(a)~="string" or type(b)~="string" then return false end
+    local rawA,rawB=a:lower(),b:lower()
     a,b=Normal(a),Normal(b)
     if not a or not b then return false end
     if a==b then return true end
+    -- The game's confirmation messages can display Saint-Ramz as "Saint Ramz".
+    -- Compare that format without treating different explicit realms as equal.
+    if rawA:find("[%s%-]") and rawB:find("[%s%-]") and
+       a:gsub("%-","")==b:gsub("%-","") then
+        return true
+    end
     local an,ar=a:match("^([^-]+)%-(.+)$")
     local bn,br=b:match("^([^-]+)%-(.+)$")
     an=an or a
@@ -63,11 +71,61 @@ local function SameCharacterName(a,b)
 end
 
 local lastRefresh
+local pendingActions={}
+local confirmedActions={}
 local function Clock()
     local n=SafeQuery(GetTime)
     if type(n)=="number" then return n end
     n=SafeQuery(time)
     return type(n)=="number" and n or 0
+end
+
+local function KnownAction(name)
+    local now=Clock()
+    for key,entry in pairs(confirmedActions) do
+        if now-entry.at>180 then confirmedActions[key]=nil
+        elseif SameCharacterName(key,name) then return entry end
+    end
+    return nil
+end
+
+local function PendingAction(name)
+    local now=Clock()
+    for key,entry in pairs(pendingActions) do
+        if now-entry.at>20 then pendingActions[key]=nil
+        elseif SameCharacterName(key,name) then return entry end
+    end
+    return nil
+end
+
+local function EscapePattern(value)
+    return (value:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])","%%%1"))
+end
+
+local function ServerCharacter(template,message)
+    if type(template)~="string" or type(message)~="string" then return nil end
+    local before,after=template:match("^(.-)%%s(.-)$")
+    if not before then return nil end
+    return message:match("^"..EscapePattern(before).."(.+)"..EscapePattern(after).."$")
+end
+
+local function ServerIgnoreConfirmation(message)
+    local name=ServerCharacter(ERR_IGNORE_ADDED_S or "%s is now being ignored.",message)
+    local blocked
+    if name then
+        blocked=true
+    else
+        name=ServerCharacter(ERR_IGNORE_REMOVED_S or "%s is no longer being ignored.",message)
+        if name then blocked=false end
+    end
+    if not name then return end
+    -- A real WoW server confirmation has priority over a stale friend-list
+    -- snapshot. Never treat merely calling AddIgnore as confirmation.
+    local now=Clock()
+    for key in pairs(pendingActions) do
+        if SameCharacterName(key,name) then pendingActions[key]=nil end
+    end
+    confirmedActions[name]={blocked=blocked,at=now}
 end
 
 function Social.RefreshIgnoreList(force)
@@ -146,7 +204,15 @@ function Social.ResolveIgnore(name,player)
         end
     end
     local direct,token=DirectStatus(name,player)
-    if direct==true then return true,token,nil end
+    local confirmed=KnownAction(name)
+    if confirmed and confirmed.blocked then
+        return true,confirmed.name or name,nil
+    end
+    if direct==true and not (confirmed and not confirmed.blocked) then
+        return true,token,nil
+    end
+    if PendingAction(name) then return nil,nil,nil end
+    if confirmed and not confirmed.blocked then return false,nil,nil end
     if complete or direct==false then return false,nil,nil end
     return nil,nil,nil
 end
@@ -224,6 +290,10 @@ function Social.ToggleIgnore(player)
     local name=PlayerName(player)
     if not name or IsSelf(name) then return false end
     local blocked,stored,index=Social.ResolveIgnore(name,player)
+    if PendingAction(name) then
+        Notice("Waiting for WoW to confirm the previous ignore-list request.")
+        return false
+    end
     if blocked==true then
         local api=C_FriendList
         local ok
@@ -232,13 +302,12 @@ function Social.ToggleIgnore(player)
         else
             ok=Perform("Unblock",(api and api.DelIgnore) or DelIgnore,stored or name)
         end
-        if ok then Social.RefreshIgnoreList(true) end
+        if ok then pendingActions[name]={at=Clock(),blocked=false} end
         return ok
     elseif blocked==false then
         local api=C_FriendList
         local ok=Perform("Block",(api and api.AddIgnore) or AddIgnore,name)
-        -- Do not pretend server confirmation: refresh the authoritative list.
-        Social.RefreshIgnoreList(true)
+        if ok then pendingActions[name]={at=Clock(),blocked=true} end
         return ok
     end
     Notice("Ignore list not loaded. Refresh the list, then right-click again.")
@@ -273,7 +342,8 @@ function FLJ.ShowPlayerContextMenu(owner,player)
         Notice("Player context menus are not available on this client.")
         return false
     end
-    Social.RefreshIgnoreList(false)
+    -- The game keeps its Ignore list current. Do not send ShowFriends()
+    -- every time a player is right-clicked; repeated requests can race.
     MenuUtil.CreateContextMenu(owner,function(_,root)
         root:CreateTitle(name)
         local selfTarget=IsSelf(name)
@@ -287,10 +357,11 @@ function FLJ.ShowPlayerContextMenu(owner,player)
             end)
         local status=Social.ResolveIgnore(name,player)
         if status==nil then
-            MenuOption(root,"Refresh Ignore Status",not selfTarget,function()
-                Social.RefreshIgnoreList(true)
-                Notice("Ignore list refresh requested. Right-click the player again.")
-            end)
+            MenuOption(root,PendingAction(name) and "Waiting for Ignore Response" or "Refresh Ignore Status",
+                not selfTarget and not PendingAction(name),function()
+                    Social.RefreshIgnoreList(true)
+                    Notice("Ignore list refresh requested. Right-click the player again.")
+                end)
         else
             MenuOption(root,status and "Unblock Player" or "Block Player (Ignore)",
                 not selfTarget,function()
@@ -357,9 +428,12 @@ local events=CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("IGNORELIST_UPDATE")
 events:RegisterEvent("FRIENDLIST_UPDATE")
-events:SetScript("OnEvent",function(_,event)
+events:RegisterEvent("CHAT_MSG_SYSTEM")
+events:SetScript("OnEvent",function(_,event,message)
     if event=="PLAYER_LOGIN" then
         Social.RefreshIgnoreList(true)
+    elseif event=="CHAT_MSG_SYSTEM" then
+        ServerIgnoreConfirmation(message)
     elseif event=="IGNORELIST_UPDATE" then
         -- Ignore updates are authoritative; the next context menu reads fresh.
         lastRefresh=nil
