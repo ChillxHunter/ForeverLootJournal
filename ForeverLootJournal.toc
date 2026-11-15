@@ -2,7 +2,7 @@
 ## Title: |cffffd76aForever Loot Journal|r
 ## Notes: Party loot and roll archive. Commands: /flj, /foreverloot, /flj players, /flj refresh, /flj clear, /flj showicon, /flj hideicon, /flj reseticon, /flj iconstatus, /flj help.
 ## Author: Custom standalone addon
-## Version: 1.1.7
+## Version: 1.1.8
 ## SavedVariables: ForeverLootJournalDB
 ## IconTexture: Interface\Icons\INV_Chest_Chain_05
 Core.lua
