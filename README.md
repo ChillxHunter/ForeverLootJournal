@@ -1,5 +1,20 @@
 # Forever Loot Journal
 
+## Version 1.2.1 – Crafting recipe tab
+
+A new **Crafting** tab is available beside All Equipment, Armor, and Weapons.
+
+- **Learned recipes:** Open a character's crafting/profession window at least once. The addon scans learned recipes from that profession and saves them in an account-wide catalog, including profession, recipe name, icon, known characters, and ingredients where WoW makes those available.
+- **Looted recipes:** Recipe scrolls, blueprints, and formula items are now tracked in the group loot log (WoW item class 9) and shown under Crafting, including the recipient and zone. Group sync also recognizes recipe drops when other party members run the updated addon.
+- **Search:** Search the Crafting tab by recipe name, profession, material, or character. Scroll its recipe list and ingredients.
+- **Stored separately:** Learned crafting recipes are saved as `ForeverLootJournalDB.recipes`, outside the 1,000–10,000 equipment-loot caps. Looted recipe *items* remain loot records and count toward that configured limit.
+- **Reopen each profession** to populate that character's known recipes. This does not download an entire database of unlearned World of Warcraft recipes; it records learned recipes your client exposes.
+
+The new recipe catalog will remain available on this account when the profession window closes, and can include multiple characters. Exact reagent availability depends on item cache and the trade-skill API supported by WoW Forever.
+
+**Install:** [Download v1.2.1](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.1/ForeverLootJournal.zip) — ZIP extracts directly to `ForeverLootJournal/` without `-main`. Close WoW and replace the previous addon directory; do not delete your SavedVariables.
+
+
 ## Version 1.2.0 – saved-loot capacity presets
 
 A **SAVED LOOT LIMIT** dropdown now appears in the top-right header of the journal. Select your computer's preferred saved-item capacity:
