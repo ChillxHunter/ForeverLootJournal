@@ -208,9 +208,8 @@ function Social.ResolveIgnore(name,player)
     if confirmed and confirmed.blocked then
         return true,confirmed.name or name,nil
     end
-    if direct==true and not (confirmed and not confirmed.blocked) then
-        return true,token,nil
-    end
+    -- A current positive game API result overrides an older server notice.
+    if direct==true then return true,token,nil end
     if PendingAction(name) then return nil,nil,nil end
     if confirmed and not confirmed.blocked then return false,nil,nil end
     if complete or direct==false then return false,nil,nil end
