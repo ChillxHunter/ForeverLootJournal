@@ -91,17 +91,20 @@ local function DirectStatus(name,player)
         local unit=SafeQuery(FLJ.GetUnitForPlayer,name)
         if type(unit)=="string" then tokens[#tokens+1]=unit end
     end
+    local checkers={}
+    -- Never pass an array containing holes to ipairs: its first nil stops
+    -- iteration and skips the remaining working APIs on some WoW clients.
+    local function AddChecker(fn)
+        if type(fn)=="function" then checkers[#checkers+1]=fn end
+    end
+    AddChecker(api and api.IsIgnored)
+    AddChecker(api and api.IsOnIgnoredList)
+    AddChecker(IsIgnored)
     for _,token in ipairs(tokens) do
-        for _,fn in ipairs({
-            api and api.IsIgnored,
-            api and api.IsOnIgnoredList,
-            IsIgnored,
-        }) do
-            if type(fn)=="function" then
-                local result=SafeQuery(fn,token)
-                if result==true then return true,token end
-                if result==false then foundResult=true end
-            end
+        for _,fn in ipairs(checkers) do
+            local result=SafeQuery(fn,token)
+            if result==true then return true,token end
+            if result==false then foundResult=true end
         end
     end
     local guid=player and player.guid
@@ -114,7 +117,8 @@ local function DirectStatus(name,player)
         if result==true then return true,name end
         if result==false then foundResult=true end
     end
-    return foundResult and false or nil,nil
+    if foundResult then return false,nil end
+    return nil,nil
 end
 
 -- Results: true/false/nil (nil = the client's ignore state is unverified),
