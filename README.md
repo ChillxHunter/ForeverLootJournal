@@ -1,6 +1,17 @@
 # Forever Loot Journal
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.0
+## Version 1.1.2 – screen-fit and portrait fixes
+
+- Journal scales to fit the available screen height and width, including the full item-details panel and footer.
+- Footer now has a separate bottom panel so its text is not covered by the item-details panel.
+- Live party/raid members show character portraits; previously grouped members use class portraits.
+- Missing glyph squares replaced with game UI textures or supported text.
+- Existing minimap button and Alt-drag controls remain unchanged.
+
+**To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
+
+
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.2
 
 INSTALL
 -------
