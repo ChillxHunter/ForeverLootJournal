@@ -7,6 +7,7 @@ on:
       - 'Media/**'
       - 'tools/test_minimap.lua'
       - 'tools/test_sync.lua'
+      - 'tools/test_storage.lua'
       - '.github/workflows/addon-validation.yml'
   pull_request:
     paths:
@@ -37,6 +38,8 @@ jobs:
         run: lua5.1 tools/test_minimap.lua
       - name: Test cross-zone party loot synchronization
         run: lua5.1 tools/test_sync.lua
+      - name: Test saved-loot storage presets
+        run: lua5.1 tools/test_storage.lua
       - name: Check addon manifest and images
         run: |
           python3 - <<'PY'
@@ -62,6 +65,10 @@ jobs:
           center_alpha = icon[18 + (height//2 * width + width//2)*4 + 3]
           assert center_alpha == 255, "Minimap artwork is transparent in the center"
           ui = Path('UI.lua').read_text(encoding='utf-8')
+          core = Path('Core.lua').read_text(encoding='utf-8')
+          assert 'EXTREME!!' in core and 'limit=10000' in core
+          assert 'BuildStorageProfileMenu(frame)' in ui
+          assert 'FOREVER_LOOT_JOURNAL_STORAGE_PROFILE' in ui
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
           assert 'SelectGearFilter("armor")' in ui and 'SelectGearFilter("weapons")' in ui
           assert 'frame:RegisterForDrag("LeftButton")' not in ui, 'Journal must be draggable only from title bar'
