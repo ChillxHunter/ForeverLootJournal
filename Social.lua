@@ -1,4 +1,4 @@
--- Forever Loot Journal v1.2.4: WoW Forever social actions for stored players.
+-- Forever Loot Journal v1.2.5: WoW Forever social actions for stored players.
 -- All modifications are triggered by explicit clicks in the Blizzard context menu.
 local addonName, FLJ = ...
 local Social={}
@@ -44,12 +44,45 @@ local function SafeQuery(fn,...)
     return ok and result or nil
 end
 
+-- Ignore entries sometimes use a name-realm variant that differs from the
+-- player name saved in the journal. Inspect Blizzard's actual ignore list
+-- before falling back to the direct name lookup.
+local function SameCharacterName(a,b)
+    if type(a)~="string" or type(b)~="string" then return false end
+    a=a:match("^%s*(.-)%s*$"):lower()
+    b=b:match("^%s*(.-)%s*$"):lower()
+    if a==b then return true end
+    local aName,aRealm=a:match("^([^-]+)%-(.+)$")
+    local bName,bRealm=b:match("^([^-]+)%-(.+)$")
+    aName=aName or a
+    bName=bName or b
+    return aName==bName and (not aRealm or not bRealm or aRealm==bRealm)
+end
+
+function Social.FindIgnoredName(name)
+    if type(name)~="string" or name=="" then return nil end
+    local api=C_FriendList
+    local count=SafeQuery(api and api.GetNumIgnores)
+    if count==nil then count=SafeQuery(GetNumIgnores) end
+    local getName=(api and api.GetIgnoreName) or GetIgnoreName
+    if type(count)=="number" and type(getName)=="function" then
+        for index=1,math.min(50,math.max(0,count)) do
+            local entry=SafeQuery(getName,index)
+            if type(entry)=="table" then entry=entry.name end
+            if SameCharacterName(entry,name) then
+                return entry -- use exactly the name recorded by WoW
+            end
+        end
+    end
+    local check=(api and api.IsIgnored) or (api and api.IsOnIgnoredList) or IsIgnored
+    if SafeQuery(check,name)==true then return name end
+    local short=name:match("^([^-]+)%-")
+    if short and SafeQuery(check,short)==true then return short end
+    return nil
+end
+
 function Social.IsIgnored(name)
-    local f=C_FriendList and (C_FriendList.IsIgnored or C_FriendList.IsOnIgnoredList)
-    local ignored=SafeQuery(f,name)
-    if ignored~=nil then return ignored==true end
-    if type(IsIgnored)=="function" then return SafeQuery(IsIgnored,name)==true end
-    return false
+    return Social.FindIgnoredName(name)~=nil
 end
 
 function Social.IsFriend(name)
@@ -115,9 +148,9 @@ end
 function Social.ToggleIgnore(player)
     local name=PlayerName(player)
     if not name or IsSelf(name) then return false end
-    local ignored=Social.IsIgnored(name)
-    if ignored then
-        return Perform("Unblock",C_FriendList and C_FriendList.DelIgnore or DelIgnore,name)
+    local ignoredName=Social.FindIgnoredName(name)
+    if ignoredName then
+        return Perform("Unblock",C_FriendList and C_FriendList.DelIgnore or DelIgnore,ignoredName)
     end
     return Perform("Block",C_FriendList and C_FriendList.AddIgnore or AddIgnore,name)
 end
@@ -161,7 +194,7 @@ function FLJ.ShowPlayerContextMenu(owner,player)
                 Social.AddFriend(player)
             end)
         local ignored=Social.IsIgnored(name)
-        MenuOption(root,ignored and "Unblock Player (Unignore)" or "Block Player (Ignore)",
+        MenuOption(root,ignored and "Unblock Player" or "Block Player (Ignore)",
             not selfTarget,function()
                 Social.ToggleIgnore(player)
             end)
