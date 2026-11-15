@@ -1,0 +1,68 @@
+name: Build installable WoW addon ZIP
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Core.lua'
+      - 'UI.lua'
+      - 'Minimap.lua'
+      - 'ForeverLootJournal.toc'
+      - 'Media/**'
+      - '.github/workflows/package-addon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-addon-package
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua and ZIP
+        run: sudo apt-get update && sudo apt-get install -y lua5.1 zip unzip
+      - name: Validate and assemble addon
+        shell: bash
+        run: |
+          set -euo pipefail
+          luac5.1 -p Core.lua
+          luac5.1 -p UI.lua
+          luac5.1 -p Minimap.lua
+          mkdir -p dist/ForeverLootJournal
+          cp Core.lua UI.lua Minimap.lua ForeverLootJournal.toc dist/ForeverLootJournal/
+          cp -R Media dist/ForeverLootJournal/
+          cp README.md dist/ForeverLootJournal/
+          (
+            cd dist
+            zip -qr ../ForeverLootJournal.zip ForeverLootJournal
+          )
+          unzip -t ForeverLootJournal.zip
+          unzip -Z1 ForeverLootJournal.zip | grep -qx 'ForeverLootJournal/ForeverLootJournal.toc'
+          if unzip -Z1 ForeverLootJournal.zip | grep -q 'ForeverLootJournal-main/'; then
+            echo "ERROR: unwanted -main folder in ZIP" >&2
+            exit 1
+          fi
+      - name: Publish release ZIP without -main directory
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^## Version: //p' ForeverLootJournal.toc | head -n 1 | tr -d '\r')
+          test -n "$VERSION"
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" ForeverLootJournal.zip --clobber
+            gh release edit "$TAG" --latest
+          else
+            gh release create "$TAG" ForeverLootJournal.zip \
+              --title "Forever Loot Journal $TAG" \
+              --notes "Installable WoW Forever addon. Extracts to ForeverLootJournal/ without the GitHub branch suffix (-main)." \
+              --latest
+          fi
+          echo "Latest addon: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/ForeverLootJournal.zip"
