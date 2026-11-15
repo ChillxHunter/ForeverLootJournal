@@ -1,4 +1,4 @@
--- Forever Loot Journal 1.1.9 - World of Warcraft: Forever (interface 16001)
+-- Forever Loot Journal 1.2.0 - World of Warcraft: Forever (interface 16001)
 -- Account-wide saved loot archive with optional party sync via Sync.lua.
 local addonName, FLJ = ...
 _G.ForeverLootJournal = FLJ
@@ -11,7 +11,54 @@ local inGroup = {}        -- canonical player key -> true
 local groupUnits = {}     -- canonical player key -> live unit token (not persisted)
 local initialized = false
 local initializingUI = false
-local MAX_RECORDS = 5000
+-- Account-wide active loot limit. The default keeps the previous 5,000-item
+-- behavior, so installing an update cannot silently remove a user's history.
+local STORAGE_PRESETS = {
+    POTATO  = {label="Potato PC", limit=1000},
+    NORMAL  = {label="Normal PC", limit=2000},
+    STRONG  = {label="Strong PC", limit=3000},
+    MONSTER = {label="MONSTER PC", limit=5000},
+    EXTREME = {label="EXTREME!!", limit=10000},
+}
+local STORAGE_ORDER={"POTATO","NORMAL","STRONG","MONSTER","EXTREME"}
+local DEFAULT_PRESET="MONSTER"
+FLJ.StoragePresets=STORAGE_PRESETS
+FLJ.StoragePresetOrder=STORAGE_ORDER
+
+local function SavedPreset()
+    local key=DB and DB.ui and DB.ui.storagePreset
+    if not STORAGE_PRESETS[key] then key=DEFAULT_PRESET end
+    return key
+end
+function FLJ.GetStoragePreset()
+    local key=SavedPreset()
+    return key,STORAGE_PRESETS[key].limit,STORAGE_PRESETS[key].label
+end
+local function TrimRecords()
+    if not DB then return 0 end
+    local limit=STORAGE_PRESETS[SavedPreset()].limit
+    local records=DB.records
+    local removed=0
+    while #records>limit do
+        local old=table.remove(records)
+        if old and old.winner then
+            local key=type(old.winner)=="string" and old.winner:lower()
+            local player=key and DB.players[key]
+            if player and (tonumber(player.lootCount) or 0)>0 then
+                player.lootCount=player.lootCount-1
+            end
+        end
+        removed=removed+1
+    end
+    return removed
+end
+function FLJ.SetStoragePreset(key)
+    if not DB or not STORAGE_PRESETS[key] then return false,0 end
+    DB.ui.storagePreset=key
+    local removed=TrimRecords()
+    if FLJ.UI and FLJ.UI.Refresh then FLJ.UI.Refresh() end
+    return true,removed
+end
 local CLASS_ARMOR, CLASS_WEAPON = 4, 2
 local function Plain(v)
     if issecretvalue and issecretvalue(v) then return nil end
@@ -186,9 +233,7 @@ local function AddRecord(info, source)
     local rec={ id=LatestID(), time=Now(), zone=Zone(), source=source or "Loot", status="Received", rolls={}}
     SetMetadata(rec,info)
     table.insert(DB.records,1,rec)
-    if #DB.records>MAX_RECORDS then
-        for i=#DB.records,MAX_RECORDS+1,-1 do table.remove(DB.records,i) end
-    end
+    TrimRecords()
     Notify()
     return rec
 end
@@ -489,6 +534,10 @@ f:SetScript("OnEvent",function(_,event,a,b,c)
         DB.players=type(DB.players)=="table" and DB.players or {}
         DB.nextID=tonumber(DB.nextID) or 0
         DB.ui=type(DB.ui)=="table" and DB.ui or {}
+        if not STORAGE_PRESETS[DB.ui.storagePreset] then
+            DB.ui.storagePreset=DEFAULT_PRESET
+        end
+        TrimRecords()
         initialized=true
         return
     end
