@@ -95,7 +95,7 @@ function FLJ.SendSelfLoot(rec)
     if not (ui and db and ui.syncEnabled and Channel()) or type(rec)~="table" then return false end
     if rec.syncSent then return false end
     local cls=tonumber(rec.classID)
-    if cls~=2 and cls~=4 then return false end
+    if cls~=2 and cls~=4 and cls~=9 then return false end
     local link=rec.link
     if type(link)~="string" then
         if not rec.itemID then return false end
@@ -130,7 +130,7 @@ local function HandleMessage(prefix,message,channel,sender)
         return
     end
     -- A small message without dynamic code execution or external libraries.
-    local serial,cls,itemString,zone=message:match("^L1\t(%d+)\t([24])\t([^\t]+)\t(.*)$")
+    local serial,cls,itemString,zone=message:match("^L1\t(%d+)\t([249])\t([^\t]+)\t(.*)$")
     if not serial or #serial>15 or #itemString>176 then return end
     if itemString:find("[%c|]") or not itemString:match("^item:%d+") then return end
     if type(zone)~="string" or #zone>48 or zone:find("[%c]") then return end
