@@ -5,6 +5,7 @@ _G.ForeverLootJournal = FLJ
 local DB
 local recentRolls = {}    -- session-scoped (encounterID:lootListKey -> record ID)
 local deferred = {}       -- items whose item data is still being loaded
+local deferredRemote = {} -- received group loot awaiting item rarity metadata
 local retries = {}        -- delayed history updates
 local groupNames = {}     -- case-folded full/short name -> canonical player key
 local inGroup = {}        -- canonical player key -> true
@@ -337,7 +338,20 @@ function FLJ.ReceiveSharedLoot(sender, serial, itemString, statedClass, remoteZo
     local info=Gear(itemString) or ItemInfo(itemString)
     if info.classID and info.classID~=classID then return false end
     local register=RegistrationAllowed(info.quality)
-    if register~=true then return false end
+    if register==nil then
+        -- A party member may be in another zone and the receiver may not have
+        -- this item's rarity cached yet. Defer rather than guessing Common.
+        if C_Item and C_Item.RequestLoadItemDataByID then
+            SafeCall(C_Item.RequestLoadItemDataByID,remoteID)
+        end
+        if not deferredRemote[unique] then
+            deferredRemote[unique]={
+                sender=sender,serial=serial,itemString=itemString,
+                statedClass=statedClass,remoteZone=remoteZone,time=Now(),
+            }
+        end
+        return false
+    elseif register==false then return false end
     info.id=info.id or remoteID
     info.classID=classID
     local rec=RecentMatch(info,who,6,false,false)
@@ -351,6 +365,19 @@ function FLJ.ReceiveSharedLoot(sender, serial, itemString, statedClass, remoteZo
     SetWinner(rec,who)
     Notify()
     return true
+end
+local function RunDeferredRemote()
+    for unique,p in pairs(deferredRemote) do
+        if Now()-p.time>60 then
+            deferredRemote[unique]=nil
+        else
+            local info=ItemInfo(p.itemString)
+            if RegistrationAllowed(info.quality)~=nil then
+                deferredRemote[unique]=nil
+                FLJ.ReceiveSharedLoot(p.sender,p.serial,p.itemString,p.statedClass,p.remoteZone)
+            end
+        end
+    end
 end
 
 -- Different localizations use different LOOT_* global format strings. These match only
@@ -436,7 +463,7 @@ local function RunDeferred()
     if not DB or #deferred==0 then return end
     local pending=deferred; deferred={}
     for _,p in ipairs(pending) do
-        if Now()-(p.time or 0)<12 then
+        if Now()-(p.time or 0)<60 then
             local info=Gear(p.link)
             if info then
                 local rec=RecentMatch(info,p.player,60,true,true)
@@ -488,7 +515,12 @@ local function ProcessHistory(encounterID,lootListKey)
         rec=RecentMatch(item,win,25,false,false)
         if not rec or (rec.rollSession and rec.rollSession~=sessionKey) then
             local allowed=RegistrationAllowed(item.quality)
-            if allowed~=true then return allowed==false end
+            if allowed~=true then
+                if allowed==nil and item.id and C_Item and C_Item.RequestLoadItemDataByID then
+                    SafeCall(C_Item.RequestLoadItemDataByID,item.id)
+                end
+                return allowed==false
+            end
             rec=AddRecord(item,"Group roll")
             if not rec then return true end
         end
@@ -578,7 +610,7 @@ local function RetryUpdate(enc,key)
 end
 function FLJ.ClearRecords()
     if not DB then return end
-    wipe(DB.records); wipe(recentRolls)
+    wipe(DB.records); wipe(recentRolls); wipe(deferredRemote); wipe(deferred)
     for _,p in pairs(DB.players) do p.lootCount=0 end
     Notify()
 end
@@ -645,13 +677,15 @@ f:SetScript("OnEvent",function(_,event,a,b,c)
                 end
             end
         end
-        RunDeferred(); Notify()
+        RunDeferred(); RunDeferredRemote(); Notify()
     elseif event=="PLAYER_REGEN_ENABLED" then
         RunDeferred(); ScanActive()
     end
 end)
 if C_Timer and C_Timer.NewTicker then
-    C_Timer.NewTicker(2,function() if initialized then RunDeferred() end end)
+    C_Timer.NewTicker(2,function()
+        if initialized then RunDeferred(); RunDeferredRemote() end
+    end)
 end
 SLASH_FOREVERLOOTJOURNAL1="/flj"
 SLASH_FOREVERLOOTJOURNAL2="/foreverloot"
