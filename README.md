@@ -1,5 +1,22 @@
 # Forever Loot Journal
 
+## Version 1.2.4 – right-click player actions
+
+**New:** Right-click any player in the **Party & Raid Members** list to open a WoW-native context menu with:
+
+- **Whisper** – opens a private chat with that character
+- **Add Friend** – adds the character to your WoW friends list; shows Already Friends when applicable
+- **Block Player (Ignore)** / **Unblock Player (Unignore)** – adds or removes the character from WoW's actual Ignore list (not an addon-only block)
+- **Invite to Party** – sends the WoW party invitation, when permitted and the person is not already grouped
+- **Invite to Guild** – sends a guild invitation when you are in a guild and have invite permissions
+
+**Left-click still filters loot by player.** Mouse-over hints explain the different clicks. The native menu uses a direct player click for guild invitations, which WoW protects with a hardware-event requirement.
+
+WoW controls eligibility and whether the target receives or accepts invitations. Cross-realm invites can be restricted by the game. If your game client lacks the modern context-menu framework, the addon reports that the menu is unavailable instead of breaking the player list.
+
+**Install:** [Download v1.2.4 ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.4/ForeverLootJournal.zip) from GitHub Releases, containing the correctly named `ForeverLootJournal/` folder (no `-main` suffix). Exit WoW and replace the old addon folder; your SavedVariables loot history stays intact.
+
+
 ## Version 1.2.3 – minimap icon matches other addon markers
 
 - Replaces the oversized bright-orange icon with a compact **dark, circular treasure-chest button** and subtle bronze/gold trim, matching the appearance of nearby minimap addon buttons.
