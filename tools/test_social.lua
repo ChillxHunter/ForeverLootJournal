@@ -1,0 +1,111 @@
+-- Forever Loot Journal right-click social actions under Lua 5.1.
+-- Simulates the WoW Forever Blizzard MenuUtil context-menu environment.
+local currentMenu
+local menuCalls=0
+local function Root()
+    local root={entries={}}
+    function root:CreateTitle(text) self.title=text end
+    function root:CreateDivider() self.divider=true end
+    function root:CreateButton(label,callback)
+        local item={label=label,callback=callback,enabled=true}
+        function item:SetEnabled(value) self.enabled=value end
+        self.entries[#self.entries+1]=item
+        return item
+    end
+    function root:Get(label)
+        for _,item in ipairs(self.entries) do
+            if item.label==label then return item end
+        end
+        return nil
+    end
+    return root
+end
+MenuUtil={CreateContextMenu=function(owner,generator)
+    assert(owner=="playerrow","menu must be anchored to the clicked roster row")
+    menuCalls=menuCalls+1
+    currentMenu=Root()
+    generator(owner,currentMenu)
+end}
+UnitFullName=function() return "Tester","Realm" end
+local friends,ignores={},{}
+C_FriendList={
+    GetFriendInfo=function(name)
+        return friends[name] and {name=name} or nil
+    end,
+    AddFriend=function(name)
+        friends[name]=true
+        return nil
+    end,
+    IsIgnored=function(name) return ignores[name]==true end,
+    AddIgnore=function(name)
+        ignores[name]=true
+        return true
+    end,
+    DelIgnore=function(name)
+        ignores[name]=nil
+        return true
+    end,
+}
+local partyInvites,guildInvites,whispers={},{},{}
+local canParty=true
+C_PartyInfo={
+    CanInvite=function() return canParty end,
+    InviteUnit=function(name) partyInvites[#partyInvites+1]=name end,
+}
+local canGuild=true
+IsInGuild=function() return true end
+CanGuildInvite=function() return canGuild end
+C_GuildInfo={Invite=function(name) guildInvites[#guildInvites+1]=name end}
+ChatFrame_SendTell=function(name) whispers[#whispers+1]=name end
+local notices={}
+print=function(message) notices[#notices+1]=message end
+
+local addon={}
+assert(loadfile("Social.lua"))("ForeverLootJournal",addon)
+local name="Ranger-Realm"
+local player={name=name,current=false}
+assert(addon.ShowPlayerContextMenu("playerrow",player))
+assert(currentMenu.title==name)
+assert(#currentMenu.entries==5)
+for _,label in ipairs({"Whisper","Add Friend","Block Player (Ignore)","Invite to Party","Invite to Guild"}) do
+    local entry=currentMenu:Get(label)
+    assert(entry and entry.enabled,"missing enabled action: "..label)
+end
+
+currentMenu:Get("Whisper").callback()
+assert(#whispers==1 and whispers[1]==name,"whisper did not open correct target")
+currentMenu:Get("Add Friend").callback()
+assert(friends[name]==true,"friend request did not use WoW friends list")
+currentMenu:Get("Block Player (Ignore)").callback()
+assert(ignores[name]==true,"blocked player was not ignored")
+currentMenu:Get("Invite to Party").callback()
+assert(#partyInvites==1 and partyInvites[1]==name,"party invite didn't reach WoW API")
+currentMenu:Get("Invite to Guild").callback()
+assert(#guildInvites==1 and guildInvites[1]==name,"guild invite didn't reach WoW API")
+
+assert(addon.ShowPlayerContextMenu("playerrow",player))
+assert(currentMenu:Get("Already Friends").enabled==false,"friend option should be disabled for existing friend")
+local unblock=currentMenu:Get("Unblock Player (Unignore)")
+assert(unblock and unblock.enabled,"menu should offer unblocking ignored players")
+unblock.callback()
+assert(not ignores[name],"unblock didn't remove WoW ignore")
+
+local grouped={name=name,current=true}
+canGuild=false
+canParty=false
+assert(addon.ShowPlayerContextMenu("playerrow",grouped))
+assert(currentMenu:Get("Invite to Party").enabled==false,"cannot invite someone already in party")
+assert(currentMenu:Get("Invite to Guild").enabled==false,"guild invitation requires permission")
+assert(addon.ShowPlayerContextMenu("playerrow",{name="Tester-Realm",current=false}))
+for _,entry in ipairs(currentMenu.entries) do
+    assert(entry.enabled==false,"should disable self-invites, whispers and ignore")
+end
+
+assert(not addon.ShowPlayerContextMenu("playerrow",{name="bad\n/macro",current=false}),
+    "must refuse malformed player names")
+local count=menuCalls
+MenuUtil=nil
+assert(not addon.ShowPlayerContextMenu("playerrow",player),"client without MenuUtil should fail safely")
+assert(menuCalls==count,"fallback should not show invalid context menu")
+assert(#partyInvites==1 and #guildInvites==1,"disabled actions must not send invitations")
+io.write("Player social menu integration tests passed\n")
