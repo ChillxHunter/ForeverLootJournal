@@ -9,6 +9,7 @@ on:
       - 'Minimap.lua'
       - 'ForeverLootJournal.toc'
       - 'Media/**'
+      - 'tools/test_minimap.lua'
       - '.github/workflows/package-addon.yml'
   workflow_dispatch:
 
@@ -33,6 +34,7 @@ jobs:
           luac5.1 -p Core.lua
           luac5.1 -p UI.lua
           luac5.1 -p Minimap.lua
+          lua5.1 tools/test_minimap.lua
           mkdir -p dist/ForeverLootJournal
           cp Core.lua UI.lua Minimap.lua ForeverLootJournal.toc dist/ForeverLootJournal/
           cp -R Media dist/ForeverLootJournal/
