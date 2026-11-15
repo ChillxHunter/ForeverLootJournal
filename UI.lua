@@ -795,14 +795,15 @@ local function BuildRarityRegistration(parent)
     heading:SetPoint("TOPLEFT",parent,"TOPLEFT",21,-99)
     for i,rarity in ipairs(FLJ.RarityOptions or {}) do
         local id=rarity.id -- capture per iteration for WoW Lua 5.1 callbacks
-        local b=Button(parent,152+(i-1)*81,92,78,28,rarity.label,function()
+        local rarityName, rarityColor=rarity.label,rarity.color
+        local b=Button(parent,152+(i-1)*81,92,78,28,rarityName,function()
             if FLJ.SetRarityEnabled then
                 FLJ.SetRarityEnabled(id,not FLJ.IsRarityEnabled(id))
                 RefreshRarityButtons()
             end
         end)
         b:SetFrameLevel(parent:GetFrameLevel()+25)
-        b.rarityColor=rarity.color
+        b.rarityColor=rarityColor
         b.label:ClearAllPoints()
         b.label:SetPoint("TOP",b,"TOP",0,-2)
         b.label:SetWidth(76)
@@ -814,8 +815,8 @@ local function BuildRarityRegistration(parent)
         b:SetScript("OnEnter",function(self)
             self.highlight:Show()
             GameTooltip:SetOwner(self,"ANCHOR_BOTTOM")
-            GameTooltip:AddLine(rarity.label.." registration: "..(FLJ.IsRarityEnabled(id) and "ON" or "OFF"),
-                rarity.color[1],rarity.color[2],rarity.color[3])
+            GameTooltip:AddLine(rarityName.." registration: "..(FLJ.IsRarityEnabled(id) and "ON" or "OFF"),
+                rarityColor[1],rarityColor[2],rarityColor[3])
             GameTooltip:AddLine("Click to toggle saving NEW drops of this rarity.",1,1,1)
             GameTooltip:AddLine("Previously recorded items are never deleted.",.70,.85,1)
             GameTooltip:Show()
