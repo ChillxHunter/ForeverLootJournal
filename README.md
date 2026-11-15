@@ -1,5 +1,25 @@
 # Forever Loot Journal
 
+## Version 1.2.2 – choose which loot rarities to register
+
+A row of **SAVE NEW LOOT** buttons is displayed at the top of the journal, beneath the heading and beside the saved-loot PC preset. Click each rarity to switch it **ON** or **OFF**:
+
+**Poor • Common • Uncommon • Rare • Epic • Legendary • Artifact • Heirloom**
+
+- **ON:** future drops of that rarity are recorded.
+- **OFF:** future drops of that rarity are not registered in this player's archive.
+- All eight rarities are **ON by default**, preserving existing behavior.
+- Preferences persist account-wide in `ForeverLootJournalDB.ui.rarityRegistration`.
+- **Previously saved records are never deleted or hidden when a rarity is turned off.** You can enable it again later without affecting history.
+- Applies to new equipment, recipe items, locally observed group rolls and cross-zone loot shared through the addon.
+- Learned crafting recipes in the profession catalog are tracked separately and are **not** affected by loot rarity filters.
+- The item-quality filter uses WoW's quality data. When an item's rarity has not loaded yet, the addon requests the item data and waits rather than assuming it is Common.
+
+To configure: open `/flj` and click the quality buttons at the top of the main window. The bright underline and **ON** label mean a rarity will be saved; **OFF** means new items of that quality will be skipped.
+
+**Install:** [Download v1.2.2 ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.2/ForeverLootJournal.zip). Extract into `Interface/AddOns` as `ForeverLootJournal/` (no `-main`). Close WoW before replacing the old folder; leave the `WTF` SavedVariables unchanged to keep your history.
+
+
 ## Version 1.2.1 – Crafting recipe tab
 
 A new **Crafting** tab is available beside All Equipment, Armor, and Weapons.
