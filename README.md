@@ -1,5 +1,15 @@
 # Forever Loot Journal
 
+## Version 1.2.3 – minimap icon matches other addon markers
+
+- Replaces the oversized bright-orange icon with a compact **dark, circular treasure-chest button** and subtle bronze/gold trim, matching the appearance of nearby minimap addon buttons.
+- Changes the physical button size to **30×30** instead of 34×34 and uses the same **MEDIUM** frame strata as Forever Casino.
+- Places it near the minimap rim using the map's actual width, removing the previous excessive outside offset.
+- Dragging adjusts the position around the map and allows small inward/outward placement changes; both values persist.
+- `/flj reseticon` resets both angle and rim distance. Existing saved records and preferences are unaffected.
+- Installs from the [v1.2.3 release ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.3/ForeverLootJournal.zip), which extracts to `ForeverLootJournal/` without `-main`.
+
+
 ## Version 1.2.2 – choose which loot rarities to register
 
 A row of **SAVE NEW LOOT** buttons is displayed at the top of the journal, beneath the heading and beside the saved-loot PC preset. Click each rarity to switch it **ON** or **OFF**:
