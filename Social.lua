@@ -290,7 +290,7 @@ function Social.ToggleIgnore(player)
     local name=PlayerName(player)
     if not name or IsSelf(name) then return false end
     local blocked,stored,index=Social.ResolveIgnore(name,player)
-    if PendingAction(name) then
+    if PendingAction(name) and blocked~=true then
         Notice("Waiting for WoW to confirm the previous ignore-list request.")
         return false
     end
