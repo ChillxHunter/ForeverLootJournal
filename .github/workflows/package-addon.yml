@@ -8,6 +8,7 @@ on:
       - 'UI.lua'
       - 'Minimap.lua'
       - 'ForeverLootJournal.toc'
+      - 'README.md'
       - 'Media/**'
       - 'tools/test_minimap.lua'
       - '.github/workflows/package-addon.yml'
