@@ -1,5 +1,26 @@
 # Forever Loot Journal
 
+## Version 1.2.0 – saved-loot capacity presets
+
+A **SAVED LOOT LIMIT** dropdown now appears in the top-right header of the journal. Select your computer's preferred saved-item capacity:
+
+| Preset | Maximum loot records |
+|---|---:|
+| Potato PC | 1,000 |
+| Normal PC | 2,000 |
+| Strong PC | 3,000 |
+| MONSTER PC | 5,000 |
+| EXTREME!! | 10,000 |
+
+The selected preset is saved account-wide in SavedVariables. The default for existing users is **MONSTER PC (5,000)**, matching the old limit and preserving current loot on upgrade. The limit applies to *loot records*, not to the separate known-player list.
+
+**Changing to a lower limit:** If you have more records than the new maximum, WoW will ask for confirmation before permanently deleting the oldest records. If you cancel, no records or settings are changed. Changing to a higher limit never deletes records; previously deleted records cannot be recovered unless backed up elsewhere.
+
+New loot automatically removes the oldest record after the selected capacity has been reached. The five presets do **not** guarantee a particular FPS: 10,000 fully populated loot/roll records can require more memory and search time.
+
+**Install:** [Download the installable v1.2.0 ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.2.0/ForeverLootJournal.zip) which contains `ForeverLootJournal/` (without `-main`). Close WoW, replace the old addon folder, and keep your `WTF` SavedVariables intact.
+
+
 ## v1.1.9 – cross-zone party and raid loot synchronization
 
 **New:** When two or more party/raid members run Forever Loot Journal v1.1.9, the addon can send newly looted armor and weapons to other members over WoW's built-in addon communication channel. It works even when the characters are in **different zones, maps, or instances**, as long as the game allows party/raid addon messages between them.
@@ -88,7 +109,7 @@ The minimap launcher now follows the **working Forever Casino button implementat
 **To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
 
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.9
+World of Warcraft: Forever | Interface 16001 | Addon v1.2.0
 
 INSTALL
 -------
