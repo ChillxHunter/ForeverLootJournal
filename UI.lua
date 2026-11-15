@@ -2,7 +2,7 @@
 local addonName, FLJ = ...
 FLJ.UI = FLJ.UI or {}
 local UI = FLJ.UI
-local W, H = 1100, 738
+local W, H = 1100, 770
 local gold = {1, .80, .31}
 local parchment = {.91, .82, .62}
 local muted = {.63, .61, .55}
@@ -81,8 +81,10 @@ local function Button(parent,x,y,w,h,text,callback)
 end
 local function Edit(parent,x,y,w,h,hint,handler)
     local wrap=Panel(parent,x,y,w,h,{.055,.050,.043,1})
-    local icon=Label(wrap,"⌕",17,muted)
-    icon:SetPoint("LEFT",wrap,"LEFT",9,0)
+    local icon=wrap:CreateTexture(nil,"ARTWORK")
+    icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+    icon:SetSize(16,16)
+    icon:SetPoint("LEFT",wrap,"LEFT",8,0)
     local edit=CreateFrame("EditBox",nil,wrap,"InputBoxTemplate")
     edit:SetAutoFocus(false); edit:SetSize(w-42,h-8)
     edit:SetPoint("LEFT",wrap,"LEFT",28,0)
@@ -104,7 +106,7 @@ local function ScrollWheel(control,fn)
     control:SetScript("OnMouseWheel",function(_,delta) fn(delta) end)
 end
 local function Date(ts)
-    if not ts or ts == 0 then return "—" end
+    if not ts or ts == 0 then return "--" end
     return date("%d %b %Y  %H:%M", ts)
 end
 local function T(str) return (str or ""):lower() end
@@ -179,15 +181,36 @@ local function Icon(parent,x,y,size)
     return b
 end
 local function ClassPortrait(parent,x,y,size)
-    local t=parent:CreateTexture(nil,"ARTWORK")
-    t:SetSize(size,size); t:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
-    t:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
-    function t:SetClass(class)
-        local tc=classCoords[class] or classCoords.WARRIOR
-        self:SetTexCoord(tc[1],tc[2],tc[3],tc[4])
+    local f=CreateFrame("Frame",nil,parent)
+    f:SetSize(size,size)
+    f:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
+    Fill(f,{.06,.05,.04,1})
+    Border(f,.48,.35,.17,1)
+    f.face=f:CreateTexture(nil,"ARTWORK")
+    f.face:SetPoint("TOPLEFT",f,"TOPLEFT",2,-2)
+    f.face:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-2,2)
+    f.fallback=f:CreateTexture(nil,"ARTWORK")
+    f.fallback:SetPoint("TOPLEFT",f,"TOPLEFT",2,-2)
+    f.fallback:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-2,2)
+    f.fallback:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+    function f:SetClass(class)
+        local coords=classCoords[class] or classCoords.WARRIOR
+        self.fallback:SetTexCoord(coords[1],coords[2],coords[3],coords[4])
+        self.face:Hide()
+        self.fallback:Show()
     end
-    t:SetClass("WARRIOR")
-    return t
+    function f:SetPlayer(player)
+        local unit=player and FLJ.GetUnitForPlayer and FLJ.GetUnitForPlayer(player.name)
+        if unit and UnitExists and UnitExists(unit) and SetPortraitTexture then
+            SetPortraitTexture(self.face,unit)
+            self.face:Show()
+            self.fallback:Hide()
+        else
+            self:SetClass(player and player.class)
+        end
+    end
+    f:SetClass("WARRIOR")
+    return f
 end
 local function MakeItemRow(parent,index)
     local y=8+(index-1)*ITEM_ROW_HEIGHT
@@ -226,9 +249,9 @@ local function SetRow(r,rec)
     if q then r.itemName:SetTextColor(q.r,q.g,q.b) else r.itemName:SetTextColor(Color(gold)) end
     local kind=(rec.subtype or rec.type or "Equipment")
     local status=rec.status or "Recorded"
-    r.meta:SetText((rec.itemLevel and ("iLvl "..rec.itemLevel.."   •   ") or "")..kind.."   •   "..status)
+    r.meta:SetText((rec.itemLevel and ("iLvl "..rec.itemLevel.."   |   ") or "")..kind.."   |   "..status)
     r.winner:SetText("Obtained by: "..(rec.winner or "Unknown"))
-    r.when:SetText((rec.zone or "Unknown zone").."   •   "..Date(rec.time))
+    r.when:SetText((rec.zone or "Unknown zone").."   |   "..Date(rec.time))
     r.selected:SetShown(rec.id==selectedID)
     r:Show()
 end
@@ -236,9 +259,9 @@ local function SetPlayerRow(r,pl)
     r.player=pl
     r.name:SetText(pl.name or "Unknown")
     r.name:SetTextColor(Color(PlayerColor(pl.class)))
-    r.meta:SetText((pl.level and ("Lv "..pl.level.."  ") or "")..(pl.class or "Class unknown").."   •   "..tostring(pl.lootCount or 0).." won")
-    r.live:SetText(pl.current and "●" or "")
-    r.portrait:SetClass(pl.class)
+    r.meta:SetText((pl.level and ("Lv "..pl.level.."  ") or "")..(pl.class or "Class unknown").."   |   "..tostring(pl.lootCount or 0).." won")
+    r.live:SetShown(pl.current and true or false)
+    r.portrait:SetPlayer(pl)
     r.selected:SetShown(chosenPlayer and T(chosenPlayer)==T(pl.name))
     r:Show()
 end
@@ -253,8 +276,13 @@ local function MakePlayerRow(parent,index)
     r.name:SetPoint("TOPLEFT",r,"TOPLEFT",40,-3);r.name:SetWidth(178)
     r.meta=Label(r,"",10,muted)
     r.meta:SetPoint("TOPLEFT",r,"TOPLEFT",40,-22);r.meta:SetWidth(200)
-    r.live=Label(r,"",17,{.4,1,.4})
-    r.live:SetPoint("TOPRIGHT",r,"TOPRIGHT",-4,-8)
+    r.live=CreateFrame("Frame",nil,r)
+    r.live:SetSize(10,10)
+    r.live:SetPoint("TOPRIGHT",r,"TOPRIGHT",-7,-8)
+    local dot=MakeTexture(r.live,"ARTWORK",{.37,.92,.35,1})
+    dot:SetPoint("TOPLEFT",r.live,"TOPLEFT",2,-2)
+    dot:SetPoint("BOTTOMRIGHT",r.live,"BOTTOMRIGHT",-2,2)
+    Border(r.live,.23,.3,.18,1)
     r:SetScript("OnEnter",function(self) self.background:SetColorTexture(.21,.16,.094,1) end)
     r:SetScript("OnLeave",function(self) self.background:SetColorTexture(.12,.11,.087,1) end)
     r:SetScript("OnClick",function(self)
@@ -336,7 +364,7 @@ local function DetailRefresh()
     detail.name:SetText(rec.name or "Unknown item")
     local q=ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[rec.quality or 1]
     if q then detail.name:SetTextColor(q.r,q.g,q.b) else detail.name:SetTextColor(Color(gold)) end
-    detail.source:SetText((rec.zone or "Unknown zone").." • "..Date(rec.time))
+    detail.source:SetText((rec.zone or "Unknown zone").." | "..Date(rec.time))
     detail.won:SetText("Winner: "..(rec.winner or (rec.status=="All passed" and "No winner" or "Not yet known")))
     local found
     if rec.winner then
@@ -346,10 +374,10 @@ local function DetailRefresh()
     end
     if found then
         local msg=(found.level and ("Lv "..found.level.." ") or "")..(found.class or "Class unknown")
-        if found.race then msg=msg.." • "..found.race end
-        if found.guild and found.guild~="" then msg=msg.." • <"..found.guild..">" end
+        if found.race then msg=msg.." | "..found.race end
+        if found.guild and found.guild~="" then msg=msg.." | <"..found.guild..">" end
         detail.winnerInfo:SetText(msg)
-        detail.classIcon:SetClass(found.class)
+        detail.classIcon:SetPlayer(found)
         detail.classIcon:Show()
     else
         detail.winnerInfo:SetText(rec.winner and "Player details not available" or "")
@@ -370,7 +398,7 @@ local function DetailRefresh()
     if #rolls==0 then
         detail.rollStatus:SetText(rec.source=="Group roll" and "Awaiting roll choices..." or "No group roll recorded for this item")
     else
-        detail.rollStatus:SetText(tostring(#rolls).." participant(s)  •  "..(rec.status or "Recorded")..(#rolls>6 and "  •  Scroll to see all" or ""))
+        detail.rollStatus:SetText(tostring(#rolls).." participant(s)  |  "..(rec.status or "Recorded")..(#rolls>6 and "  |  Scroll to see all" or ""))
     end
     table.sort(rolls,function(a,b)
         if (not not a.winner) ~= (not not b.winner) then return a.winner end
@@ -380,7 +408,7 @@ local function DetailRefresh()
         local roll=rolls[i+detailRollOffset]
         if roll then
             local rv=roll.value and ("  ["..tostring(roll.value).."]") or ""
-            local trophy=roll.winner and "★ " or "    "
+            local trophy=roll.winner and "WIN " or "    "
             line:SetText(trophy..(roll.name or "Unknown").."  —  "..(roll.action or "Unknown")..rv)
             line:SetTextColor(Color(roll.winner and gold or PlayerColor(roll.class)))
         else
@@ -444,7 +472,7 @@ function UI.Refresh()
     if playerOffset>minPlayerOffset then playerOffset=minPlayerOffset end
     local minListOffset=math.max(0,#loot-ITEM_VISIBLE)
     if listOffset>minListOffset then listOffset=minListOffset end
-    playerLabel:SetText(chosenPlayer and (chosenPlayer.."  ▼") or "All players  ▼")
+    playerLabel:SetText(chosenPlayer or "All players")
     countText:SetText(tostring(#loot).." loot records  |  "..tostring(#FLJ.GetPlayers()).." known players")
     titleText:SetText("LOOT ARCHIVE")
     for i,r in ipairs(playerRows) do
@@ -517,12 +545,21 @@ local function MakeFrame()
     playerSearchBox=Edit(side,12,57,236,33,"Search player names...",function(s)
         playerSearch=T(s);playerOffset=0;UI.Refresh()
     end)
-    local dropBtn=Button(side,12,102,236,32,"All players  ▼",function()
+    local dropBtn=Button(side,12,102,236,32,"All players",function()
         dropdown:SetShown(not dropdown:IsShown());DropdownRefresh()
     end)
     playerLabel=dropBtn.label
-    local live=Label(side,"●  Green = currently in your group",10,{.62,.79,.53})
-    live:SetPoint("TOPLEFT",side,"TOPLEFT",13,-146)
+    local dropArrow=Label(side,"v",11,parchment,"CENTER")
+    dropArrow:SetPoint("RIGHT",dropBtn,"RIGHT",-12,0)
+    local legendDot=CreateFrame("Frame",nil,side)
+    legendDot:SetSize(10,10)
+    legendDot:SetPoint("TOPLEFT",side,"TOPLEFT",13,-149)
+    local active=MakeTexture(legendDot,"ARTWORK",{.37,.92,.35,1})
+    active:SetPoint("TOPLEFT",legendDot,"TOPLEFT",2,-2)
+    active:SetPoint("BOTTOMRIGHT",legendDot,"BOTTOMRIGHT",-2,2)
+    Border(legendDot,.23,.3,.18,1)
+    local liveText=Label(side,"Green = currently in your group",10,{.62,.79,.53})
+    liveText:SetPoint("LEFT",legendDot,"RIGHT",6,0)
     local roster=Panel(side,0,170,260,419,{.067,.061,.049,1})
     playerRows={}
     for i=1,PLAYER_VISIBLE do playerRows[i]=MakePlayerRow(roster,i) end
@@ -560,21 +597,38 @@ local function MakeFrame()
         UI.Refresh()
     end)
     detail=MakeDetail(frame)
-    local foot=Label(frame,"/flj to open • Wheel to scroll • Shift-click an item icon to link it in chat • Account-wide saved history",10,muted,"CENTER")
-    foot:SetPoint("BOTTOM",frame,"BOTTOM",0,5);foot:SetWidth(W-40)
+    local footer=Panel(frame,13,733,W-26,26,{.083,.067,.046,1})
+    local foot=Label(footer,"/flj to open   |   Mouse wheel to scroll   |   Shift-click item to link it   |   Account-wide saved history",11,parchment,"CENTER")
+    foot:SetPoint("CENTER",footer,"CENTER",0,0)
+    foot:SetWidth(W-48)
     frame:Hide()
+end
+local function FitWindow()
+    if not frame or not UIParent then return end
+    local availableWidth=math.max(1,(UIParent:GetWidth() or W)-48)
+    local availableHeight=math.max(1,(UIParent:GetHeight() or H)-80)
+    local scale=math.min(1,availableWidth/W,availableHeight/H)
+    frame:SetScale(scale)
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER",UIParent,"CENTER",0,0)
 end
 function FLJ.Toggle(players)
     if not frame then MakeFrame() end
-    if players then playerSearchBox:SetFocus() end
-    if frame:IsShown() and not players then frame:Hide()
+    if frame:IsShown() and not players then
+        frame:Hide()
     else
-        local scale=math.min(1,math.max(.62,UIParent:GetWidth()/(W+30)),math.max(.62,UIParent:GetHeight()/(H+25)))
-        frame:SetScale(scale)
+        FitWindow()
         frame:Show()
+        if players then playerSearchBox:SetFocus() end
         UI.Refresh()
     end
 end
+local sizeWatch=CreateFrame("Frame")
+sizeWatch:RegisterEvent("DISPLAY_SIZE_CHANGED")
+sizeWatch:RegisterEvent("UI_SCALE_CHANGED")
+sizeWatch:SetScript("OnEvent",function()
+    if frame and frame:IsShown() then FitWindow() end
+end)
 -- Small optional minimap shortcut (left-click toggles the window).
 local function MinimapShortcut()
     if not Minimap then return end
