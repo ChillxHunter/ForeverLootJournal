@@ -312,14 +312,36 @@ local function MakePlayerRow(parent,index)
     dot:SetPoint("TOPLEFT",r.live,"TOPLEFT",2,-2)
     dot:SetPoint("BOTTOMRIGHT",r.live,"BOTTOMRIGHT",-2,2)
     Border(r.live,.23,.3,.18,1)
-    r:SetScript("OnEnter",function(self) self.background:SetColorTexture(.21,.16,.094,1) end)
-    r:SetScript("OnLeave",function(self) self.background:SetColorTexture(.12,.11,.087,1) end)
-    r:SetScript("OnClick",function(self)
-        if self.player then
-            if chosenPlayer and T(chosenPlayer)==T(self.player.name) then chosenPlayer=nil
-            else chosenPlayer=self.player.name end
-            listOffset=0;UI.Refresh()
+    r:RegisterForClicks("LeftButtonUp","RightButtonUp")
+    r:SetScript("OnEnter",function(self)
+        self.background:SetColorTexture(.21,.16,.094,1)
+        if self.player and GameTooltip then
+            GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+            GameTooltip:AddLine(self.player.name or "Player",1,.82,.33)
+            GameTooltip:AddLine("Left-click: filter loot history",.9,.9,.9)
+            GameTooltip:AddLine("Right-click: player actions",.9,.9,.9)
+            GameTooltip:Show()
         end
+    end)
+    r:SetScript("OnLeave",function(self)
+        self.background:SetColorTexture(.12,.11,.087,1)
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+    r:SetScript("OnClick",function(self,mouseButton)
+        if not self.player then return end
+        if mouseButton=="RightButton" then
+            if FLJ.ShowPlayerContextMenu then
+                FLJ.ShowPlayerContextMenu(self,self.player)
+            end
+            return
+        end
+        if chosenPlayer and T(chosenPlayer)==T(self.player.name) then
+            chosenPlayer=nil
+        else
+            chosenPlayer=self.player.name
+        end
+        listOffset=0
+        UI.Refresh()
     end)
     return r
 end
