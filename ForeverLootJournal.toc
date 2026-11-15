@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: |cffffd76aForever Loot Journal|r
-## Notes: Party/raid loot and crafting recipes, with rarity registration switches and PC storage presets (1000-10000) and optional cross-zone sync (all players need addon). Commands: /flj, /foreverloot, /flj players, /flj refresh, /flj clear, /flj showicon, /flj hideicon, /flj reseticon, /flj iconstatus, /flj sync, /flj sync on, /flj sync off, /flj sync check, /flj help.
+## Notes: Party/raid loot and crafting recipes, right-click player actions, rarity registration switches and PC storage presets (1000-10000) and optional cross-zone sync (all players need addon). Commands: /flj, /foreverloot, /flj players, /flj refresh, /flj clear, /flj showicon, /flj hideicon, /flj reseticon, /flj iconstatus, /flj sync, /flj sync on, /flj sync off, /flj sync check, /flj help.
 ## Author: Custom standalone addon
-## Version: 1.2.3
+## Version: 1.2.4
 ## SavedVariables: ForeverLootJournalDB
 ## IconTexture: Interface\Icons\INV_Chest_Chain_05
 Core.lua
@@ -10,3 +10,4 @@ UI.lua
 Minimap.lua
 Sync.lua
 Crafting.lua
+Social.lua
