@@ -1,5 +1,17 @@
 # Forever Loot Journal
 
+## Version 1.1.8 – fixed circular minimap icon and outside positioning
+
+- Fixed the icon being square: added a custom **32-bit TGA** with transparent corners and an integrated circular gold rim.
+- Fixed the icon being inside the minimap: its radius now follows the minimap's actual width, with a minimum offset beyond the map border.
+- Uses the working Casino-style player-login initialization and drag mechanism.
+- Minimap icon position resets once after upgrading to this version; your later manual placement remains saved.
+- **Left-click** opens the journal, **drag** moves the icon around the minimap, and `/flj reseticon` restores its outside position.
+- GitHub's automated tests check that the icon's corners are transparent and that positioning remains outside the map during drag.
+
+**Install:** Download the [v1.1.8 installable ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.1.8/ForeverLootJournal.zip). It extracts to `ForeverLootJournal/` without `-main`. Close WoW and replace the addon folder; don't delete SavedVariables.
+
+
 ## Version 1.1.7 – Casino-style minimap recovery and AddOns tooltip commands
 
 The minimap launcher now follows the **working Forever Casino button implementation**: it is created at player login, parented to the minimap, uses Blizzard's native tracking border texture, and is repositioned by dragging. Earlier versions that created it immediately when the addon loaded could fail to show the icon. Existing saved icon settings are reset once on upgrading to v1.1.7.
@@ -57,7 +69,7 @@ The minimap launcher now follows the **working Forever Casino button implementat
 **To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
 
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.7
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.8
 
 INSTALL
 -------
