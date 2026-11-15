@@ -1,0 +1,54 @@
+name: Validate WoW addon
+on:
+  push:
+    paths:
+      - '*.lua'
+      - '*.toc'
+      - 'Media/**'
+      - '.github/workflows/addon-validation.yml'
+  pull_request:
+    paths:
+      - '*.lua'
+      - '*.toc'
+      - 'Media/**'
+      - '.github/workflows/addon-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua compiler
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+      - name: Parse every addon Lua file
+        run: |
+          set -eu
+          for file in Core.lua UI.lua Minimap.lua; do
+            echo "Checking $file"
+            luac5.1 -p "$file"
+          done
+      - name: Check addon manifest and images
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from struct import unpack
+          toc = Path('ForeverLootJournal.toc').read_text(encoding='utf-8')
+          assert '## Interface: 16001' in toc
+          for name in [x.strip() for x in toc.splitlines() if x.strip() and not x.startswith('##')]:
+              assert (Path(name)).is_file(), f"Missing add-on script: {name}"
+          for name in ['banner.tga', 'detail.tga', 'paper.tga']:
+              image = Path('Media') / name
+              data = image.read_bytes()
+              assert len(data) > 18, f"Missing image data: {image}"
+              assert data[2] == 2, f"Unexpected TGA format: {image}"
+              width, height = unpack('<HH', data[12:16])
+              assert width and height, f"Invalid TGA dimensions: {image}"
+          ui = Path('UI.lua').read_text(encoding='utf-8')
+          assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
+          assert 'SelectGearFilter("armor")' in ui and 'SelectGearFilter("weapons")' in ui
+          assert 'frame:RegisterForDrag("LeftButton")' not in ui, 'Journal must be draggable only from title bar'
+          print('Manifest, artwork and filter checks passed')
+          PY
