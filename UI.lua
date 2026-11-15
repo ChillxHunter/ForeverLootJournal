@@ -680,6 +680,9 @@ end
 local function SelectGearFilter(nextFilter)
     if nextFilter~="all" and nextFilter~="armor" and nextFilter~="weapons" and nextFilter~="crafting" then return end
     gearFilter=nextFilter
+    if nextFilter=="crafting" and FLJ.Crafting and FLJ.Crafting.Scan then
+        FLJ.Crafting.Scan()
+    end
     selectedID=nil
     listOffset=0
     detailRollOffset=0
@@ -933,7 +936,11 @@ local function MakeFrame()
     filterButtons.weapons=Button(filt,223,5,96,30,"Weapons",function()SelectGearFilter("weapons")end)
     filterButtons.crafting=Button(filt,325,5,108,30,"Crafting",function()SelectGearFilter("crafting")end)
     Button(filt,568,5,112,30,"Refresh",function()
-        if FLJ.RegisterRoster then FLJ.RegisterRoster() end
+        if gearFilter=="crafting" then
+            if FLJ.Crafting and FLJ.Crafting.Scan then FLJ.Crafting.Scan() end
+        elseif FLJ.RegisterRoster then
+            FLJ.RegisterRoster()
+        end
         UI.Refresh()
     end)
     Button(filt,686,5,107,30,"Clear log",function() FLJ.ShowClearConfirm() end)
