@@ -165,7 +165,7 @@ local function FilteredLoot()
     local rows={}
     for _,r in ipairs(FLJ.GetRecords()) do
         local kind=GearClass(r)
-        local valid=(gearFilter=="all" or (gearFilter=="armor" and kind==4) or (gearFilter=="weapons" and kind==2))
+        local valid=((gearFilter=="all" and kind~=9) or (gearFilter=="armor" and kind==4) or (gearFilter=="weapons" and kind==2))
         if valid and PlayerMatches(r) and (searchText=="" or Includes(r.name,searchText) or Includes(r.winner,searchText) or Includes(r.zone,searchText) or Includes(r.subtype,searchText)) then
             rows[#rows+1]=r
         end
@@ -488,7 +488,7 @@ end
 -- Stored profession recipes live outside loot record limits.
 local function CraftMatch(r)
     if craftingQuery=="" then return true end
-    if Includes(r.name,craftingQuery) or Includes(r.profession,craftingQuery) then return true end
+    if Includes(r.name,craftingQuery) or Includes(r.profession,craftingQuery) or Includes(r.foundBy,craftingQuery) then return true end
     for who in pairs(r.knownBy or {}) do
         if Includes(who,craftingQuery) then return true end
     end
@@ -504,6 +504,24 @@ local function CraftList()
     for _,recipe in ipairs(craft.GetRecipes()) do
         if CraftMatch(recipe) then filtered[#filtered+1]=recipe end
     end
+    -- Keep physical recipe scrolls/plans that the player or party actually
+    -- looted, even if that recipe has not yet been learned.
+    for _,r in ipairs(FLJ.GetRecords()) do
+        if tonumber(r.classID)==9 then
+            local recipe={
+                recipeID="loot-"..tostring(r.id),
+                looted=true, name=r.name, profession=r.subtype or "Recipe item",
+                icon=r.icon, itemLink=r.link, foundBy=r.winner,
+                zone=r.zone, materials={}, date=r.time,
+            }
+            if CraftMatch(recipe) then filtered[#filtered+1]=recipe end
+        end
+    end
+    table.sort(filtered,function(a,b)
+        local pa,pb=(a.profession or ""):lower(),(b.profession or ""):lower()
+        if pa~=pb then return pa<pb end
+        return (a.name or ""):lower()<(b.name or ""):lower()
+    end)
     return filtered
 end
 local function CraftingRefresh()
@@ -536,7 +554,7 @@ local function CraftingRefresh()
         else row:Hide() end
     end
     if not current then
-        craftingDetail.icon:SetTexture(placeholder)
+        craftingDetail.icon.tex:SetTexture(placeholder)
         craftingDetail.name:SetText("No saved recipes yet")
         craftingDetail.profession:SetText("Open your character's profession window")
         craftingDetail.known:SetText("Learned recipes are saved automatically.")
@@ -544,18 +562,22 @@ local function CraftingRefresh()
         for _,line in ipairs(craftingDetail.lines) do line:SetText("") end
         return
     end
-    craftingDetail.icon:SetTexture(current.icon or placeholder)
-    craftingDetail.icon.link=current.itemLink or current.link
+    craftingDetail.icon.tex:SetTexture(current.icon or placeholder)
+    craftingDetail.icon.record={link=current.itemLink or current.link}
     craftingDetail.name:SetText(current.name)
     craftingDetail.profession:SetText(current.profession or "Unknown profession")
     local names={}
     for who in pairs(current.knownBy or {}) do names[#names+1]=who end
     table.sort(names)
-    craftingDetail.known:SetText("Known by: "..(#names>0 and table.concat(names,", ") or "Unknown"))
+    if current.looted then
+        craftingDetail.known:SetText("Looted by: "..(current.foundBy or "Unknown").."  |  "..(current.zone or "Unknown zone"))
+    else
+        craftingDetail.known:SetText("Known by: "..(#names>0 and table.concat(names,", ") or "Unknown"))
+    end
     local mats=current.materials or {}
     local maxOffset=math.max(0,#mats-#craftingDetail.lines)
     craftingMaterialsOffset=math.min(maxOffset,math.max(0,craftingMaterialsOffset))
-    craftingDetail.materialsTitle:SetText("REQUIRED MATERIALS"..(#mats>#craftingDetail.lines and "  (scroll to see more)" or ""))
+    craftingDetail.materialsTitle:SetText(current.looted and "RECIPE ITEM" or ("REQUIRED MATERIALS"..(#mats>#craftingDetail.lines and "  (scroll to see more)" or "")))
     for i,line in ipairs(craftingDetail.lines) do
         local mat=mats[i+craftingMaterialsOffset]
         if mat then
@@ -563,7 +585,7 @@ local function CraftingRefresh()
             local extra=mat.optional and "  (optional)" or mat.alternatives and "  (or alternative)" or ""
             line:SetText(tostring(mat.quantity or 1).."x  "..name..extra)
         elseif i==1 and #mats==0 then
-            line:SetText("Ingredients unavailable. Open the profession to rescan.")
+            line:SetText(current.looted and "Use this item to learn its recipe, if eligible." or "Ingredients unavailable. Open the profession to rescan.")
         else line:SetText("") end
     end
 end
