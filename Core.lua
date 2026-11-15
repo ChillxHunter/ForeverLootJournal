@@ -1,4 +1,4 @@
--- Forever Loot Journal 1.2.0 - World of Warcraft: Forever (interface 16001)
+-- Forever Loot Journal 1.2.1 - World of Warcraft: Forever (interface 16001)
 -- Account-wide saved loot archive with optional party sync via Sync.lua.
 local addonName, FLJ = ...
 _G.ForeverLootJournal = FLJ
@@ -59,7 +59,7 @@ function FLJ.SetStoragePreset(key)
     if FLJ.UI and FLJ.UI.Refresh then FLJ.UI.Refresh() end
     return true,removed
 end
-local CLASS_ARMOR, CLASS_WEAPON = 4, 2
+local CLASS_ARMOR, CLASS_WEAPON, CLASS_RECIPE = 4, 2, 9
 local function Plain(v)
     if issecretvalue and issecretvalue(v) then return nil end
     return v
@@ -98,8 +98,11 @@ local function ItemInfo(link)
 end
 local function Gear(link)
     local item=ItemInfo(link)
+    if item.classID == CLASS_RECIPE then
+        -- Crafting plans and formulae are item class 9 and are not equippable.
+        return item
+    end
     if item.classID == CLASS_ARMOR or item.classID == CLASS_WEAPON then
-        -- Armor class includes equippable rings/trinkets/shields; hide none of the equippable gear.
         if item.slot and item.slot ~= "" then return item end
     end
     if item.id and (not item.classID or not item.slot) and C_Item and C_Item.RequestLoadItemDataByID then
@@ -275,7 +278,7 @@ end
 function FLJ.ReceiveSharedLoot(sender, serial, itemString, statedClass, remoteZone)
     if not DB or type(sender)~="string" or type(itemString)~="string" then return false end
     local classID=tonumber(statedClass)
-    if classID~=CLASS_ARMOR and classID~=CLASS_WEAPON then return false end
+    if classID~=CLASS_ARMOR and classID~=CLASS_WEAPON and classID~=CLASS_RECIPE then return false end
     local remoteID=tonumber(itemString:match("^item:(%d+)"))
     if not remoteID then return false end
     local who=Resolve(sender)
