@@ -13,6 +13,7 @@ local selectedID, listOffset, playerOffset, detailRollOffset = nil, 0, 0, 0
 local frame, itemRows, playerRows, detail, dropdown, dropdownRows
 local searchBox, playerSearchBox, playerLabel, titleText, countText, listEmpty
 local tabButtons, filterButtons, clearPopup
+local storageProfileButton, storageProfileMenu, storageProfileRows
 local ITEM_VISIBLE = 4
 local PLAYER_VISIBLE = 11
 local ITEM_ROW_HEIGHT = 57
@@ -497,6 +498,93 @@ local function SelectGearFilter(nextFilter)
     detailRollOffset=0
     UI.Refresh()
 end
+local function FormatLimit(n)
+    local v=tostring(tonumber(n) or 0)
+    return v:reverse():gsub("(%d%d%d)(%d)","%1,%2"):reverse()
+end
+local function RefreshStorageProfile()
+    if not storageProfileButton or not FLJ.GetStoragePreset then return end
+    local current,limit,label=FLJ.GetStoragePreset()
+    storageProfileButton.label:SetText(label.."  -  "..FormatLimit(limit))
+    if not storageProfileRows then return end
+    for key,button in pairs(storageProfileRows) do
+        local active=key==current
+        button.base:SetColorTexture(active and .38 or .16,active and .27 or .127,active and .11 or .087,1)
+        button.label:SetTextColor(active and 1 or .91,active and .84 or .76,active and .35 or .59)
+        if button.activeEdge then button.activeEdge:SetShown(active) end
+    end
+end
+local pendingStorage
+local function ApplyStoragePreset(key)
+    if not FLJ.SetStoragePreset then return end
+    local ok,removed=FLJ.SetStoragePreset(key)
+    if ok then
+        selectedID=nil
+        listOffset=0
+        detailRollOffset=0
+        RefreshStorageProfile()
+        UI.Refresh()
+        local _,limit,label=FLJ.GetStoragePreset()
+        print("|cffffd76aForever Loot Journal:|r "..label.." selected. Storing up to "..
+            FormatLimit(limit).." loot records."..
+            (removed>0 and (" Removed "..FormatLimit(removed).." oldest records.") or ""))
+    end
+end
+local function SelectStoragePreset(key)
+    local profile=FLJ.StoragePresets and FLJ.StoragePresets[key]
+    if not profile then return end
+    if storageProfileMenu then storageProfileMenu:Hide() end
+    local current=FLJ.GetStoragePreset()
+    if current==key then return end
+    local count=#FLJ.GetRecords()
+    if count>profile.limit then
+        if not StaticPopupDialogs or not StaticPopup_Show then
+            print("|cffffd76aForever Loot Journal:|r Cannot lower the limit without a confirmation popup.")
+            return
+        end
+        local dialogKey="FOREVER_LOOT_JOURNAL_STORAGE_PROFILE"
+        if not StaticPopupDialogs[dialogKey] then
+            StaticPopupDialogs[dialogKey]={
+                text="Switch to %s?\n%s OLDEST loot records will be permanently deleted.\nThis cannot be undone.",
+                button1=YES or "Confirm",button2=NO or "Cancel",
+                timeout=0,whileDead=true,hideOnEscape=true,preferredIndex=3,
+                OnAccept=function(_,data)
+                    local chosen=data or pendingStorage
+                    pendingStorage=nil
+                    ApplyStoragePreset(chosen)
+                end,
+                OnCancel=function() pendingStorage=nil end,
+            }
+        end
+        pendingStorage=key
+        StaticPopup_Show(dialogKey,profile.label.." ("..FormatLimit(profile.limit)..")",FormatLimit(count-profile.limit),key)
+    else
+        ApplyStoragePreset(key)
+    end
+end
+local function BuildStorageProfileMenu(parent)
+    storageProfileMenu=CreateFrame("Frame",nil,parent)
+    storageProfileMenu:SetSize(243,194)
+    storageProfileMenu:SetPoint("TOPLEFT",parent,"TOPLEFT",819,-105)
+    storageProfileMenu:SetFrameStrata("DIALOG")
+    storageProfileMenu:SetFrameLevel(parent:GetFrameLevel()+32)
+    storageProfileMenu:EnableMouse(true)
+    Fill(storageProfileMenu,{.065,.051,.032,.99})
+    Border(storageProfileMenu,.71,.52,.23,2)
+    storageProfileRows={}
+    for i,key in ipairs(FLJ.StoragePresetOrder or {}) do
+        local entry=FLJ.StoragePresets[key]
+        local text=entry.label.."  -  "..FormatLimit(entry.limit).." saved"
+        local b=Button(storageProfileMenu,6,5+(i-1)*37,231,33,text,function()
+            SelectStoragePreset(key)
+        end)
+        b:SetFrameLevel(storageProfileMenu:GetFrameLevel()+1)
+        storageProfileRows[key]=b
+    end
+    storageProfileMenu:Hide()
+    RefreshStorageProfile()
+end
+
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
     local players=FilteredPlayers()
@@ -530,6 +618,7 @@ function UI.Refresh()
     DetailRefresh()
     DropdownRefresh()
     RefreshFilters()
+    RefreshStorageProfile()
 end
 function FLJ.ShowClearConfirm()
     if not StaticPopupDialogs then return end
@@ -585,6 +674,14 @@ local function MakeFrame()
     sub:SetPoint("TOP",frame,"TOP",0,-84);sub:SetWidth(550)
     local close=Button(frame,1053,19,27,25,"X",function()frame:Hide()end)
     close.label:SetTextColor(1,.30,.20)
+    local storageTitle=Label(frame,"SAVED LOOT LIMIT",10,parchment)
+    storageTitle:SetPoint("TOPLEFT",frame,"TOPLEFT",841,-31)
+    storageProfileButton=Button(frame,832,65,230,32,"MONSTER PC  -  5,000",function()
+        storageProfileMenu:SetShown(not storageProfileMenu:IsShown())
+        RefreshStorageProfile()
+    end)
+    storageProfileButton:SetFrameLevel(frame:GetFrameLevel()+15)
+    BuildStorageProfileMenu(frame)
     local side=Panel(frame,13,124,260,662,{.094,.073,.051,1})
     local sh=Label(side,"PARTY & RAID MEMBERS",14,gold)
     sh:SetPoint("TOPLEFT",side,"TOPLEFT",12,-12)
