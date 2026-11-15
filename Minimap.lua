@@ -1,71 +1,75 @@
--- Forever Loot Journal minimap launcher v1.1.5
--- Uses the same simple minimap-button structure as ForeverCasino.
--- No mask texture or opaque background: avoids invisible icon and black square.
+-- Forever Loot Journal - reliable round minimap launcher (1.1.6)
 local addonName, FLJ = ...
-local DEFAULT_ANGLE=305
-local BUTTON_SIZE=32
+local BUTTON_SIZE = 34
+local DEFAULT_ANGLE = 300
 local button
 
-local function Settings()
-    if type(ForeverLootJournalDB)~="table" then ForeverLootJournalDB={} end
-    local db=ForeverLootJournalDB
-    if type(db.ui)~="table" then db.ui={} end
-    local ui=db.ui
-    -- The previous button could be hidden or placed offscreen. Restore it
-    -- exactly once on upgrading; preserve existing loot history and later moves.
-    if not ui.minimapLauncherV3 then
-        ui.minimapLauncherV3=true
-        ui.minimapHidden=false
-        ui.minimapAngle=DEFAULT_ANGLE
+local function GetSettings()
+    -- SavedVariables are prepared in Core.lua during ADDON_LOADED.
+    if type(ForeverLootJournalDB) ~= "table" then
+        ForeverLootJournalDB = {}
+    end
+    local db = ForeverLootJournalDB
+    if type(db.ui) ~= "table" then db.ui = {} end
+    local ui = db.ui
+    -- Previous positions and masks could leave the icon invisible.
+    -- Recover ONCE on upgrade; all subsequent movements are preserved.
+    if not ui.minimapRepair116 then
+        ui.minimapRepair116 = true
+        ui.minimapHidden = false
+        ui.minimapAngle = DEFAULT_ANGLE
     end
     return ui
 end
 
 local function Radius()
-    if not Minimap then return 94 end
-    local width=Minimap:GetWidth() or 160
-    return math.max(79,width/2+13)
+    local width = Minimap and Minimap:GetWidth() or 160
+    -- The icon straddles the outside of the minimap frame, not its interior.
+    return math.max(88, width / 2 + 12)
 end
 
-local function UpdatePosition()
+local function Position()
     if not button or not Minimap then return end
-    local ui=Settings()
-    local a=math.rad(tonumber(ui.minimapAngle) or DEFAULT_ANGLE)
-    local r=Radius()
+    local settings = GetSettings()
+    local angle = math.rad(tonumber(settings.minimapAngle) or DEFAULT_ANGLE)
+    local radius = Radius()
     button:ClearAllPoints()
-    button:SetPoint("CENTER",Minimap,"CENTER",r*math.cos(a),r*math.sin(a))
-    button:SetShown(not ui.minimapHidden)
+    button:SetPoint("CENTER", Minimap, "CENTER",
+        math.cos(angle) * radius, math.sin(angle) * radius)
+    if settings.minimapHidden then button:Hide() else button:Show() end
 end
 
-local function CursorAngle()
+local function GetAngleFromMouse()
     if not Minimap then return nil end
-    local mx,my=GetCursorPosition()
-    local cx,cy=Minimap:GetCenter()
-    local scale=Minimap:GetEffectiveScale()
-    if not cx or not cy or not scale or scale==0 then return nil end
-    local dx,dy=mx/scale-cx,my/scale-cy
-    if math.abs(dx)+math.abs(dy)<0.001 then return nil end
+    local cx,cy = Minimap:GetCenter()
+    local scale = Minimap:GetEffectiveScale()
+    if not cx or not cy or not scale or scale == 0 then return nil end
+    local mx,my = GetCursorPosition()
+    local dx = mx / scale - cx
+    local dy = my / scale - cy
+    if math.abs(dx) + math.abs(dy) < 0.01 then return nil end
     if math.atan2 then return math.deg(math.atan2(dy,dx)) end
-    if math.abs(dx)<0.001 then return dy>=0 and 90 or 270 end
-    local a=math.atan(dy/dx)
-    if dx<0 then a=a+math.pi end
+    if math.abs(dx) < 0.001 then
+        return dy >= 0 and 90 or 270
+    end
+    local a = math.atan(dy/dx)
+    if dx < 0 then a = a + math.pi end
     return math.deg(a)
 end
 
 local function BuildButton()
-    if not Minimap then return end
+    if not Minimap or not UIParent then return end
     if not button then
-        button=_G.ForeverLootJournalMinimapButton
-            or CreateFrame("Button","ForeverLootJournalMinimapButton",Minimap)
+        button = _G.ForeverLootJournalMinimapButton
+            or CreateFrame("Button","ForeverLootJournalMinimapButton",UIParent)
     end
-    -- Minimap parenting matches standard Blizzard and ForeverCasino buttons.
-    button:SetParent(Minimap)
-    if button._fljInstalledV3 then return end
-    button._fljInstalledV3=true
+    -- Important: UIParent never clips children to the minimap's round map mask.
+    button:SetParent(UIParent)
+    if button._fljButton116 then return end
+    button._fljButton116 = true
     button:SetSize(BUTTON_SIZE,BUTTON_SIZE)
     button:SetFrameStrata("HIGH")
-    button:SetFrameLevel(Minimap:GetFrameLevel()+8)
-    button:SetClampedToScreen(true)
+    button:SetFrameLevel(math.max(30,(Minimap:GetFrameLevel() or 1)+12))
     button:EnableMouse(true)
     button:RegisterForClicks("LeftButtonUp")
     button:RegisterForDrag("LeftButton")
@@ -73,105 +77,114 @@ local function BuildButton()
     button:SetPushedTexture(nil)
     button:SetHighlightTexture(nil)
 
-    -- The chest itself is intentionally small, with no square backdrop.
-    local icon=button.icon or button:CreateTexture(nil,"ARTWORK")
+    -- Do not draw any opaque background or unsupported mask texture.
+    -- The stock tracking border has a transparent circular opening.
+    local icon = button.icon or button:CreateTexture(nil,"ARTWORK")
     icon:ClearAllPoints()
     icon:SetPoint("CENTER",button,"CENTER",0,0)
-    icon:SetSize(20,20)
+    icon:SetSize(18,18)
     icon:SetTexture("Interface\\Icons\\INV_Chest_Chain_05")
-    icon:SetTexCoord(.10,.90,.10,.90)
+    icon:SetTexCoord(.12,.88,.12,.88)
     icon:Show()
-    button.icon=icon
+    button.icon = icon
 
-    -- Conventional gold circular minimap rim (transparent outside the circle).
-    local border=button:CreateTexture(nil,"OVERLAY")
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    border:SetSize(53,53)
-    border:SetPoint("TOPLEFT",button,"TOPLEFT",-11,11)
-    button.border=border
+    local rim=button:CreateTexture(nil,"OVERLAY")
+    rim:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    rim:SetAllPoints(button)
+    rim:SetSize(34,34)
+    button.rim=rim
 
     local glow=button:CreateTexture(nil,"HIGHLIGHT")
     glow:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-    glow:SetBlendMode("ADD")
     glow:SetAllPoints(button)
+    glow:SetBlendMode("ADD")
 
     button:SetScript("OnEnter",function(self)
         GameTooltip:SetOwner(self,"ANCHOR_LEFT")
-        GameTooltip:AddLine("Forever Loot Journal",1,.82,.36)
-        GameTooltip:AddLine("Left-click: open the journal",1,1,1)
-        GameTooltip:AddLine("Drag: move around the minimap",.75,.83,1)
+        GameTooltip:AddLine("Forever Loot Journal",1,.84,.35)
+        GameTooltip:AddLine("Left click to open",1,1,1)
+        GameTooltip:AddLine("Drag to move around the minimap",.78,.84,1)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave",function() GameTooltip:Hide() end)
     button:SetScript("OnClick",function(self)
-        if not self._dragging and not self._ignoreNextClick and FLJ.Toggle then
+        if not self._dragging and not self._suppressClick and FLJ.Toggle then
             FLJ.Toggle()
         end
     end)
     button:SetScript("OnDragStart",function(self)
         self._dragging=true
-        self._ignoreNextClick=true
+        self._suppressClick=true
         GameTooltip:Hide()
         self:SetScript("OnUpdate",function()
-            local angle=CursorAngle()
-            if angle then Settings().minimapAngle=angle;UpdatePosition() end
+            local angle=GetAngleFromMouse()
+            if angle then
+                GetSettings().minimapAngle=angle
+                Position()
+            end
         end)
     end)
     button:SetScript("OnDragStop",function(self)
         self._dragging=false
         self:SetScript("OnUpdate",nil)
         if C_Timer and C_Timer.After then
-            C_Timer.After(.2,function() self._ignoreNextClick=false end)
-        else self._ignoreNextClick=false end
+            C_Timer.After(.15,function() self._suppressClick=false end)
+        else
+            self._suppressClick=false
+        end
     end)
 end
 
 function FLJ.UpdateMinimapButton()
-    if not Minimap then return end
+    if not Minimap or not UIParent then return end
     BuildButton()
-    UpdatePosition()
+    Position()
 end
 
-local previous=SlashCmdList and SlashCmdList.FOREVERLOOTJOURNAL
-if previous then
+local previousSlash=SlashCmdList and SlashCmdList.FOREVERLOOTJOURNAL
+if previousSlash then
     SlashCmdList.FOREVERLOOTJOURNAL=function(message)
-        local command=tostring(message or ""):lower():match("^%s*(.-)%s*$")
-        local ui=Settings()
-        if command=="showicon" or command=="map" or command=="minimap" then
+        local cmd=tostring(message or ""):lower():match("^%s*(.-)%s*$")
+        local ui=GetSettings()
+        if cmd=="showicon" or cmd=="map" or cmd=="minimap" then
             ui.minimapHidden=false
             FLJ.UpdateMinimapButton()
-            print("|cffffd76aForever Loot Journal:|r Minimap marker is visible. Drag it to reposition.")
-        elseif command=="hideicon" then
+            print("|cffffd76aForever Loot Journal:|r map icon shown")
+        elseif cmd=="hideicon" then
             ui.minimapHidden=true
             FLJ.UpdateMinimapButton()
-        elseif command=="icon" then
+            print("|cffffd76aForever Loot Journal:|r map icon hidden")
+        elseif cmd=="icon" then
             ui.minimapHidden=not ui.minimapHidden
             FLJ.UpdateMinimapButton()
-        elseif command=="reseticon" then
-            ui.minimapAngle=DEFAULT_ANGLE
+        elseif cmd=="reseticon" then
             ui.minimapHidden=false
+            ui.minimapAngle=DEFAULT_ANGLE
             FLJ.UpdateMinimapButton()
-            print("|cffffd76aForever Loot Journal:|r Minimap marker reset to the lower-right edge.")
-        elseif command=="iconstatus" then
+            print("|cffffd76aForever Loot Journal:|r map icon restored to the map's lower-right edge")
+        elseif cmd=="iconstatus" then
             FLJ.UpdateMinimapButton()
-            print("|cffffd76aForever Loot Journal:|r minimap="..tostring(Minimap~=nil)..
-                " button="..tostring(button~=nil).." shown="..tostring(button and button:IsShown())..
-                " hiddenSetting="..tostring(ui.minimapHidden))
+            print("|cffffd76aForever Loot Journal:|r minimap="..tostring(Minimap~=nil)
+                .." button="..tostring(button~=nil)
+                .." visible="..tostring(button and button:IsVisible())
+                .." shown="..tostring(button and button:IsShown())
+                .." angle="..tostring(ui.minimapAngle)
+                .." hidden="..tostring(ui.minimapHidden))
         else
-            previous(message)
-            if command=="help" then
-                print("|cffffd76aMinimap:|r /flj showicon, /flj reseticon, /flj iconstatus")
+            previousSlash(message)
+            if cmd=="help" then
+                print("|cffffd76aMinimap commands:|r /flj reseticon, /flj showicon, /flj iconstatus")
             end
         end
     end
 end
 
-local lifecycle=CreateFrame("Frame")
-lifecycle:RegisterEvent("PLAYER_LOGIN")
-lifecycle:RegisterEvent("PLAYER_ENTERING_WORLD")
-lifecycle:RegisterEvent("UI_SCALE_CHANGED")
-lifecycle:RegisterEvent("DISPLAY_SIZE_CHANGED")
-lifecycle:SetScript("OnEvent",function()
+local loader=CreateFrame("Frame")
+loader:RegisterEvent("PLAYER_LOGIN")
+loader:RegisterEvent("PLAYER_ENTERING_WORLD")
+loader:RegisterEvent("UI_SCALE_CHANGED")
+loader:RegisterEvent("DISPLAY_SIZE_CHANGED")
+loader:SetScript("OnEvent",function()
     FLJ.UpdateMinimapButton()
 end)
 FLJ.UpdateMinimapButton()
