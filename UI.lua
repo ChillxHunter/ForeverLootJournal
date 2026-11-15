@@ -70,10 +70,17 @@ end
 local function Button(parent,x,y,w,h,text,callback)
     local b=CreateFrame("Button",nil,parent)
     b:SetSize(w,h); b:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
+    b:EnableMouse(true)
+    b:RegisterForClicks("LeftButtonUp")
     b.base=Fill(b,{.16,.127,.087,1})
     Border(b,.39,.30,.17,1)
     b.highlight=MakeTexture(b,"ARTWORK",{.73,.54,.20,.19}); b.highlight:SetAllPoints(); b.highlight:Hide()
     b.label=Label(b,text or "",12,gold,"CENTER"); b.label:SetAllPoints()
+    b.activeEdge=MakeTexture(b,"OVERLAY",{.98,.77,.27,1})
+    b.activeEdge:SetPoint("BOTTOMLEFT",b,"BOTTOMLEFT",3,3)
+    b.activeEdge:SetPoint("BOTTOMRIGHT",b,"BOTTOMRIGHT",-3,3)
+    b.activeEdge:SetHeight(2)
+    b.activeEdge:Hide()
     b:SetScript("OnEnter",function(self) self.highlight:Show() end)
     b:SetScript("OnLeave",function(self) self.highlight:Hide() end)
     b:SetScript("OnClick",callback)
@@ -134,10 +141,27 @@ local function PlayerMatches(r)
     end
     return false
 end
+-- Older SavedVariables can lack item-class IDs even though the gear was logged.
+-- Resolve them from item metadata before applying the Armor/Weapons filter.
+local function GearClass(rec)
+    local classID=tonumber(rec.classID)
+    if classID~=2 and classID~=4 and rec.link and FLJ.ItemInfo then
+        local ok, info=pcall(FLJ.ItemInfo,rec.link)
+        if ok and type(info)=="table" then
+            local recovered=tonumber(info.classID)
+            if recovered==2 or recovered==4 then
+                classID=recovered
+                rec.classID=recovered
+            end
+        end
+    end
+    return classID
+end
 local function FilteredLoot()
     local rows={}
     for _,r in ipairs(FLJ.GetRecords()) do
-        local valid = (gearFilter=="all" or (gearFilter=="armor" and r.classID==4) or (gearFilter=="weapons" and r.classID==2))
+        local kind=GearClass(r)
+        local valid=(gearFilter=="all" or (gearFilter=="armor" and kind==4) or (gearFilter=="weapons" and kind==2))
         if valid and PlayerMatches(r) and (searchText=="" or Includes(r.name,searchText) or Includes(r.winner,searchText) or Includes(r.zone,searchText) or Includes(r.subtype,searchText)) then
             rows[#rows+1]=r
         end
@@ -339,7 +363,7 @@ local function MakeDetail(parent)
     end
     ScrollWheel(p,function(delta)
         local record=GetSelected()
-        if record and #record.rolls > 6 then
+        if record and record.rolls and #record.rolls > 6 then
             detailRollOffset=math.max(0,math.min(#record.rolls-6,detailRollOffset-delta*2))
             UI.Refresh()
         end
@@ -409,7 +433,7 @@ local function DetailRefresh()
         if roll then
             local rv=roll.value and ("  ["..tostring(roll.value).."]") or ""
             local trophy=roll.winner and "WIN " or "    "
-            line:SetText(trophy..(roll.name or "Unknown").."  —  "..(roll.action or "Unknown")..rv)
+            line:SetText(trophy..(roll.name or "Unknown").."  -  "..(roll.action or "Unknown")..rv)
             line:SetTextColor(Color(roll.winner and gold or PlayerColor(roll.class)))
         else
             line:SetText("")
@@ -458,11 +482,20 @@ local function BuildDropdown(parent)
     dropdown:Hide()
 end
 local function RefreshFilters()
-    for k,b in pairs(filterButtons) do
+    for k,b in pairs(filterButtons or {}) do
         local chosen=gearFilter==k
         b.base:SetColorTexture(chosen and .39 or .16,chosen and .27 or .127,chosen and .095 or .087,1)
         b.label:SetTextColor(chosen and 1 or .73,chosen and .88 or .63,chosen and .46 or .32)
+        if b.activeEdge then b.activeEdge:SetShown(chosen) end
     end
+end
+local function SelectGearFilter(nextFilter)
+    if nextFilter~="all" and nextFilter~="armor" and nextFilter~="weapons" then return end
+    gearFilter=nextFilter
+    selectedID=nil
+    listOffset=0
+    detailRollOffset=0
+    UI.Refresh()
 end
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
@@ -473,7 +506,8 @@ function UI.Refresh()
     local minListOffset=math.max(0,#loot-ITEM_VISIBLE)
     if listOffset>minListOffset then listOffset=minListOffset end
     playerLabel:SetText(chosenPlayer or "All players")
-    countText:SetText(tostring(#loot).." loot records  |  "..tostring(#FLJ.GetPlayers()).." known players")
+    local filterName=gearFilter=="armor" and "ARMOR" or gearFilter=="weapons" and "WEAPONS" or "ALL EQUIPMENT"
+    countText:SetText(filterName.."  |  "..tostring(#loot).." matching records  |  "..tostring(#FLJ.GetPlayers()).." known players")
     titleText:SetText("LOOT ARCHIVE")
     for i,r in ipairs(playerRows) do
         if players[i+playerOffset] then SetPlayerRow(r,players[i+playerOffset]) else r:Hide() end
@@ -483,8 +517,16 @@ function UI.Refresh()
         if rec then SetRow(r,rec) else r:Hide() end
     end
     listEmpty:SetShown(#loot==0)
-    if selectedID and not GetSelected() then selectedID=nil end
-    if not selectedID and loot[1] then selectedID=loot[1].id end
+    local selectedVisible=false
+    if selectedID then
+        for _,rec in ipairs(loot) do
+            if rec.id==selectedID then selectedVisible=true; break end
+        end
+    end
+    if not selectedVisible then
+        selectedID=loot[1] and loot[1].id or nil
+        detailRollOffset=0
+    end
     DetailRefresh()
     DropdownRefresh()
     RefreshFilters()
@@ -577,10 +619,12 @@ local function MakeFrame()
         searchText=T(s);listOffset=0;UI.Refresh()
     end)
     local filt=Panel(frame,284,193,803,41,{.091,.081,.064,1})
+    -- Keep filter controls above nearby noninteractive artwork and frames.
+    filt:SetFrameLevel(frame:GetFrameLevel()+12)
     filterButtons={}
-    filterButtons.all=Button(filt,7,5,108,30,"All Equipment",function()gearFilter="all";listOffset=0;UI.Refresh()end)
-    filterButtons.armor=Button(filt,121,5,96,30,"Armor",function()gearFilter="armor";listOffset=0;UI.Refresh()end)
-    filterButtons.weapons=Button(filt,223,5,96,30,"Weapons",function()gearFilter="weapons";listOffset=0;UI.Refresh()end)
+    filterButtons.all=Button(filt,7,5,108,30,"All Equipment",function()SelectGearFilter("all")end)
+    filterButtons.armor=Button(filt,121,5,96,30,"Armor",function()SelectGearFilter("armor")end)
+    filterButtons.weapons=Button(filt,223,5,96,30,"Weapons",function()SelectGearFilter("weapons")end)
     Button(filt,568,5,112,30,"Refresh",function()
         if FLJ.RegisterRoster then FLJ.RegisterRoster() end
         UI.Refresh()
@@ -629,23 +673,4 @@ sizeWatch:RegisterEvent("UI_SCALE_CHANGED")
 sizeWatch:SetScript("OnEvent",function()
     if frame and frame:IsShown() then FitWindow() end
 end)
--- Small optional minimap shortcut (left-click toggles the window).
-local function MinimapShortcut()
-    if not Minimap then return end
-    local b=CreateFrame("Button","ForeverLootJournalMinimapButton",Minimap)
-    b:SetSize(30,30); b:SetFrameStrata("MEDIUM")
-    b:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-9,12)
-    b:SetNormalTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    b.icon=b:CreateTexture(nil,"ARTWORK")
-    b.icon:SetSize(18,18);b.icon:SetPoint("CENTER",b,"CENTER",-1,1)
-    b.icon:SetTexture("Interface\\Icons\\INV_Chest_Chain_05")
-    b:SetScript("OnEnter",function(self)
-        GameTooltip:SetOwner(self,"ANCHOR_LEFT")
-        GameTooltip:AddLine("Forever Loot Journal",1,.8,.3)
-        GameTooltip:AddLine("Left-click to browse the loot archive",.9,.9,.9)
-        GameTooltip:Show()
-    end)
-    b:SetScript("OnLeave",function()GameTooltip:Hide()end)
-    b:SetScript("OnClick",function() FLJ.Toggle() end)
-end
-MinimapShortcut()
+-- Minimap launcher is created only by Minimap.lua, to avoid duplicate buttons.
