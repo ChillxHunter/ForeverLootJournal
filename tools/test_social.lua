@@ -11,6 +11,8 @@ function CreateFrame()
     return f
 end
 GetTime=function() return 500 end
+ERR_IGNORE_ADDED_S="%s is now being ignored."
+ERR_IGNORE_REMOVED_S="%s is no longer being ignored."
 
 local function Root()
     local root={entries={}}
@@ -95,7 +97,8 @@ local slashFallbackCalls=0
 SlashCmdList={FOREVERLOOTJOURNAL=function() slashFallbackCalls=slashFallbackCalls+1 end}
 local addon={}
 assert(loadfile("Social.lua"))("ForeverLootJournal",addon)
-assert(socialFrame and socialFrame.events.PLAYER_LOGIN and socialFrame.events.IGNORELIST_UPDATE)
+assert(socialFrame and socialFrame.events.PLAYER_LOGIN and socialFrame.events.IGNORELIST_UPDATE
+    and socialFrame.events.CHAT_MSG_SYSTEM)
 socialFrame.OnEvent(socialFrame,"PLAYER_LOGIN")
 assert(socialRequests==1,"must fetch live ignore list at login")
 local name="Ranger-Realm"
@@ -125,6 +128,7 @@ local unblock=currentMenu:Get("Unblock Player")
 assert(unblock and unblock.enabled,"menu should offer unblocking ignored players")
 unblock.callback()
 assert(not ignores[name],"unblock didn't remove WoW ignore")
+socialFrame.OnEvent(socialFrame,"CHAT_MSG_SYSTEM","Ranger-Realm is no longer being ignored.")
 
 -- An ignore that existed BEFORE installing the addon might have been
 -- stored as a short name while the journal displays Name-Realm.
@@ -136,7 +140,8 @@ assert(existingBlock and existingBlock.enabled,"pre-existing short-name ignore n
 assert(not currentMenu:Get("Block Player (Ignore)"),"already ignored player still shows Block")
 existingBlock.callback()
 assert(not ignores["Saint"],"unblock must use the stored ignore-list entry, not the displayed realm name")
-assert(socialRequests>=2,"removing a block should request updated social data")
+socialFrame.OnEvent(socialFrame,"CHAT_MSG_SYSTEM","Saint Ramz is no longer being ignored.")
+assert(socialRequests==1,"social actions should not repeatedly call ShowFriends")
 
 -- Conversely, never confuse two fully qualified names on different realms.
 ignores["Saint-AnotherRealm"]=true
@@ -190,6 +195,42 @@ C_FriendList.GetIgnoreName=savedGetName
 C_FriendList.IsIgnored=savedIsIgnored
 C_FriendList.IsOnIgnoredList=savedSecondary
 ignores["Saint-Ramz"]=nil
+
+-- Real screenshot regression: WoW confirms "Saint Ramz is now being ignored."
+-- while the friends-list APIs still return an older, unblocked snapshot.
+local savedAdd=C_FriendList.AddIgnore
+local serverAdds=0
+C_FriendList.AddIgnore=function(target)
+    serverAdds=serverAdds+1
+    -- The request is asynchronous; don't update the mock ignore list here.
+    return true
+end
+local delayed={name="Saint-Ramz",current=false}
+assert(addon.ShowPlayerContextMenu("playerrow",delayed))
+assert(currentMenu:Get("Block Player (Ignore)"),"unblocked player must offer Block")
+currentMenu:Get("Block Player (Ignore)").callback()
+assert(serverAdds==1,"ignore request sent more than once")
+assert(addon.ShowPlayerContextMenu("playerrow",delayed))
+assert(currentMenu:Get("Waiting for Ignore Response"),
+    "a pending request must not offer another Block action")
+assert(not currentMenu:Get("Block Player (Ignore)"),
+    "repeat Block action must not be available during pending server confirmation")
+socialFrame.OnEvent(socialFrame,"CHAT_MSG_SYSTEM","Saint Ramz is now being ignored.")
+assert(addon.ShowPlayerContextMenu("playerrow",delayed))
+assert(currentMenu:Get("Unblock Player"),
+    "confirmed ignored player must display Unblock despite stale friends-list API")
+assert(socialRequests==1,
+    "opening player menu and toggling Ignore must not spam ShowFriends requests")
+C_FriendList.AddIgnore=savedAdd
+socialFrame.OnEvent(socialFrame,"CHAT_MSG_SYSTEM","Saint Ramz is no longer being ignored.")
+
+-- Ignore-list entries can also contain a display-space rather than a realm hyphen.
+ignores["Saint Ramz"]=true
+assert(addon.ShowPlayerContextMenu("playerrow",delayed))
+assert(currentMenu:Get("Unblock Player"),"space/hyphen name variants must match")
+currentMenu:Get("Unblock Player").callback()
+assert(not ignores["Saint Ramz"],"unignore must remove the correctly matched displayed name")
+socialFrame.OnEvent(socialFrame,"CHAT_MSG_SYSTEM","Saint Ramz is no longer being ignored.")
 
 local grouped={name=name,current=true}
 canGuild=false
