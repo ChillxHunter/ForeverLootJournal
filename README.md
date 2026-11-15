@@ -1,6 +1,6 @@
 # Forever Loot Journal
 
-World of Warcraft: Forever | Interface 16001
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.0
 
 INSTALL
 -------
@@ -11,7 +11,9 @@ INSTALL
    so that the full file path is:
      ...\Interface\AddOns\ForeverLootJournal\ForeverLootJournal.toc
 4. Relaunch Forever and enable the addon in the AddOns menu.
-5. Type /flj in chat or click the small chest icon by the minimap.
+5. Type /flj in chat or left-click the round chest icon beside the minimap.
+6. Hold Alt and drag the chest icon to reposition it around the minimap.
+7. Your minimap icon position is saved automatically between sessions.
 
 FEATURES
 --------
@@ -41,6 +43,10 @@ COMMANDS
 /flj refresh         Refresh group roster and available loot rolls
 /flj clear           Request confirmation to delete saved loot
 /flj help            Show command help
+/flj showicon        Show the minimap button
+/flj hideicon        Hide the minimap button
+/flj icon            Toggle the minimap button
+/flj reseticon       Reset minimap button position to the default location
 
 IMPORTANT LIMITATIONS
 ---------------------
@@ -73,3 +79,7 @@ Game item and class icons are loaded from World of Warcraft itself.
 SOURCE AND RELEASE STATUS
 -------------------------
 This repository contains the addon source. It is not yet field-tested inside the live WoW Forever client; report Lua errors and client-version differences in GitHub Issues.
+
+MINIMAP SHORTCUT
+----------------
+Left-click the round chest icon to open or close the journal. Alt-drag moves it around the minimap and remembers its position. If it is lost, type /flj reseticon.
