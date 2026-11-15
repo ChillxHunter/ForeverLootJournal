@@ -29,6 +29,17 @@ end}
 UnitFullName=function() return "Tester","Realm" end
 local friends,ignores={},{}
 C_FriendList={
+    GetNumIgnores=function()
+        local total=0
+        for _ in pairs(ignores) do total=total+1 end
+        return total
+    end,
+    GetIgnoreName=function(index)
+        local names={}
+        for name in pairs(ignores) do names[#names+1]=name end
+        table.sort(names)
+        return names[index]
+    end,
     GetFriendInfo=function(name)
         return friends[name] and {name=name} or nil
     end,
@@ -85,10 +96,27 @@ assert(#guildInvites==1 and guildInvites[1]==name,"guild invite didn't reach WoW
 
 assert(addon.ShowPlayerContextMenu("playerrow",player))
 assert(currentMenu:Get("Already Friends").enabled==false,"friend option should be disabled for existing friend")
-local unblock=currentMenu:Get("Unblock Player (Unignore)")
+local unblock=currentMenu:Get("Unblock Player")
 assert(unblock and unblock.enabled,"menu should offer unblocking ignored players")
 unblock.callback()
 assert(not ignores[name],"unblock didn't remove WoW ignore")
+
+-- An ignore that existed BEFORE installing the addon might have been
+-- stored as a short name while the journal displays Name-Realm.
+ignores["Saint"]=true
+local preblocked={name="Saint-Ramz",current=false}
+assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
+local existingBlock=currentMenu:Get("Unblock Player")
+assert(existingBlock and existingBlock.enabled,"pre-existing short-name ignore not recognized")
+assert(not currentMenu:Get("Block Player (Ignore)"),"already ignored player still shows Block")
+existingBlock.callback()
+assert(not ignores["Saint"],"unblock must use the stored ignore-list entry, not the displayed realm name")
+
+-- Conversely, never confuse two fully qualified names on different realms.
+ignores["Saint-AnotherRealm"]=true
+assert(addon.ShowPlayerContextMenu("playerrow",preblocked))
+assert(currentMenu:Get("Block Player (Ignore)"),"different-realm player incorrectly treated as ignored")
+ignores["Saint-AnotherRealm"]=nil
 
 local grouped={name=name,current=true}
 canGuild=false
