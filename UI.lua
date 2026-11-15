@@ -17,6 +17,7 @@ local craftingPane, lootListPanel, craftingRows, craftingCount, craftingDetail, 
 local craftingQuery, craftingOffset, selectedCraftID, craftingMaterialsOffset = "",0,nil,0
 local CRAFT_VISIBLE=9
 local storageProfileButton, storageProfileMenu, storageProfileRows
+local rarityButtons={}
 local ITEM_VISIBLE = 4
 local PLAYER_VISIBLE = 11
 local ITEM_ROW_HEIGHT = 57
@@ -776,6 +777,58 @@ local function BuildStorageProfileMenu(parent)
     RefreshStorageProfile()
 end
 
+-- Individual rarity registration switches; they never hide or delete saved loot.
+local function RefreshRarityButtons()
+    if not FLJ.IsRarityEnabled then return end
+    for quality,b in pairs(rarityButtons) do
+        local enabled=FLJ.IsRarityEnabled(quality)
+        local rgb=b.rarityColor or gold
+        b.base:SetColorTexture(enabled and .19 or .08,enabled and .16 or .07,enabled and .105 or .06,1)
+        b.label:SetTextColor(enabled and rgb[1] or .45,enabled and rgb[2] or .43,enabled and rgb[3] or .4)
+        b.state:SetText(enabled and "ON" or "OFF")
+        b.state:SetTextColor(enabled and .48 or 1,enabled and .92 or .37,enabled and .43 or .34)
+        if b.activeEdge then b.activeEdge:SetShown(enabled) end
+    end
+end
+local function BuildRarityRegistration(parent)
+    local heading=Label(parent,"SAVE NEW LOOT:",11,gold)
+    heading:SetPoint("TOPLEFT",parent,"TOPLEFT",21,-99)
+    for i,rarity in ipairs(FLJ.RarityOptions or {}) do
+        local id=rarity.id -- capture per iteration for WoW Lua 5.1 callbacks
+        local b=Button(parent,152+(i-1)*81,92,78,28,rarity.label,function()
+            if FLJ.SetRarityEnabled then
+                FLJ.SetRarityEnabled(id,not FLJ.IsRarityEnabled(id))
+                RefreshRarityButtons()
+            end
+        end)
+        b:SetFrameLevel(parent:GetFrameLevel()+25)
+        b.rarityColor=rarity.color
+        b.label:ClearAllPoints()
+        b.label:SetPoint("TOP",b,"TOP",0,-2)
+        b.label:SetWidth(76)
+        b.label:SetHeight(14)
+        b.label:SetFont("Fonts\\FRIZQT__.TTF",10,"OUTLINE")
+        b.state=Label(b,"ON",9,{.48,.92,.43},"CENTER")
+        b.state:SetPoint("BOTTOM",b,"BOTTOM",0,2)
+        b.state:SetWidth(75)
+        b:SetScript("OnEnter",function(self)
+            self.highlight:Show()
+            GameTooltip:SetOwner(self,"ANCHOR_BOTTOM")
+            GameTooltip:AddLine(rarity.label.." registration: "..(FLJ.IsRarityEnabled(id) and "ON" or "OFF"),
+                rarity.color[1],rarity.color[2],rarity.color[3])
+            GameTooltip:AddLine("Click to toggle saving NEW drops of this rarity.",1,1,1)
+            GameTooltip:AddLine("Previously recorded items are never deleted.",.70,.85,1)
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave",function(self)
+            self.highlight:Hide()
+            GameTooltip:Hide()
+        end)
+        rarityButtons[id]=b
+    end
+    RefreshRarityButtons()
+end
+
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
     local crafting=gearFilter=="crafting"
@@ -792,6 +845,7 @@ function UI.Refresh()
         DropdownRefresh()
         RefreshFilters()
         RefreshStorageProfile()
+        RefreshRarityButtons()
         return
     end
     local loot=FilteredLoot()
@@ -825,6 +879,7 @@ function UI.Refresh()
     DropdownRefresh()
     RefreshFilters()
     RefreshStorageProfile()
+    RefreshRarityButtons()
 end
 function FLJ.ShowClearConfirm()
     if not StaticPopupDialogs then return end
@@ -888,6 +943,7 @@ local function MakeFrame()
     end)
     storageProfileButton:SetFrameLevel(frame:GetFrameLevel()+15)
     BuildStorageProfileMenu(frame)
+    BuildRarityRegistration(frame)
     local side=Panel(frame,13,124,260,662,{.094,.073,.051,1})
     local sh=Label(side,"PARTY & RAID MEMBERS",14,gold)
     sh:SetPoint("TOPLEFT",side,"TOPLEFT",12,-12)
