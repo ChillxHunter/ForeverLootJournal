@@ -1,5 +1,18 @@
 # Forever Loot Journal
 
+## Version 1.1.5 – minimap recovery and expanded item details
+
+- Restores the minimap marker for users whose previous version hid or misplaced it. A one-time position reset moves the marker to the lower-right edge.
+- Replaces masked minimap rendering with a standard circular gold-rimmed button; no square black backdrop.
+- Drag the marker with the left mouse button to position it around the minimap. The position persists.
+- Adds `/flj iconstatus` to diagnose visibility and `/flj reseticon` to restore it.
+- Enlarges the item details and roll history panel to show **six item/stat lines and nine roll participants** at once.
+- Grows the journal vertically, scales to fit the screen, and positions it slightly higher when room is available.
+- Preserves account-wide loot logs and the other v1.1.4 fixes.
+
+**Install:** Close WoW completely, replace the old `Interface/AddOns/ForeverLootJournal` folder with the new GitHub ZIP's `ForeverLootJournal-main` folder renamed to `ForeverLootJournal`. Do **not** delete the `WTF` SavedVariables file. Restart WoW.
+
+
 ## Version 1.1.4 – equipment filtering and minimap fixes
 
 - Armor, Weapons, and All Equipment buttons now register clicks explicitly, show an active indicator, and update the matching-item count.
@@ -21,7 +34,7 @@
 **To update:** Download the latest GitHub ZIP, completely close WoW, replace the old `ForeverLootJournal` addon directory (not your `WTF` saved settings), then relaunch.
 
 
-World of Warcraft: Forever | Interface 16001 | Addon v1.1.4
+World of Warcraft: Forever | Interface 16001 | Addon v1.1.5
 
 INSTALL
 -------
