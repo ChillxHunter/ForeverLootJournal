@@ -1,5 +1,5 @@
--- Forever Loot Journal 1.1.4 - World of Warcraft: Forever (interface 16001)
--- Account-wide saved loot archive; no communication with other addons or players.
+-- Forever Loot Journal 1.1.9 - World of Warcraft: Forever (interface 16001)
+-- Account-wide saved loot archive with optional party sync via Sync.lua.
 local addonName, FLJ = ...
 _G.ForeverLootJournal = FLJ
 local DB
@@ -225,6 +225,36 @@ local function RecentMatch(info,winner,seconds,requireRoll,withoutReceipt)
         end
     end
 end
+-- Sync.lua verifies that sender is an actual current party/raid member.
+-- Locally saved source IDs ensure repeated transmissions do not double-count.
+function FLJ.ReceiveSharedLoot(sender, serial, itemString, statedClass, remoteZone)
+    if not DB or type(sender)~="string" or type(itemString)~="string" then return false end
+    local classID=tonumber(statedClass)
+    if classID~=CLASS_ARMOR and classID~=CLASS_WEAPON then return false end
+    local remoteID=tonumber(itemString:match("^item:(%d+)"))
+    if not remoteID then return false end
+    local who=Resolve(sender)
+    local unique=Key(who)..":"..tostring(serial)
+    for _,entry in ipairs(DB.records) do
+        if entry.syncKey==unique then return false end
+    end
+    local info=Gear(itemString) or ItemInfo(itemString)
+    if info.classID and info.classID~=classID then return false end
+    info.id=info.id or remoteID
+    info.classID=classID
+    local rec=RecentMatch(info,who,6,false,false)
+    if rec and rec.syncKey and rec.syncKey~=unique then rec=nil end
+    if not rec then rec=AddRecord(info,"Party sync") end
+    rec.syncKey=unique
+    rec.receipt=true
+    rec.status="Received"
+    if rec.source~="Group roll" then rec.source="Party sync" end
+    rec.zone=type(remoteZone)=="string" and remoteZone~="" and remoteZone or rec.zone
+    SetWinner(rec,who)
+    Notify()
+    return true
+end
+
 -- Different localizations use different LOOT_* global format strings. These match only
 -- actual loot receipt templates, not roll announcements and not crafted items.
 local function FormatPattern(fmt)
@@ -290,6 +320,7 @@ local function TrackLootMessage(msg)
         rec.receipt=true
         SetWinner(rec,player)
     end
+    if pk==myself and FLJ.SendSelfLoot then FLJ.SendSelfLoot(rec) end
     Notify()
 end
 local function RunDeferred()
@@ -299,13 +330,16 @@ local function RunDeferred()
         if Now()-(p.time or 0)<12 then
             local info=Gear(p.link)
             if info then
-                local existing=RecentMatch(info,p.player,60,true,true)
-                if existing then
-                    existing.receipt=true; existing.status="Received"
-                    SetMetadata(existing,info); SetWinner(existing,p.player)
+                local rec=RecentMatch(info,p.player,60,true,true)
+                if rec then
+                    rec.receipt=true; rec.status="Received"
+                    SetMetadata(rec,info); SetWinner(rec,p.player)
                 else
-                    local rec=AddRecord(info,"Loot message")
+                    rec=AddRecord(info,"Loot message")
                     rec.receipt=true; SetWinner(rec,p.player)
+                end
+                if Key(Resolve(p.player))==Key(MyName()) and FLJ.SendSelfLoot then
+                    FLJ.SendSelfLoot(rec)
                 end
             else deferred[#deferred+1]=p end
         end
@@ -383,6 +417,9 @@ local function ProcessHistory(encounterID,lootListKey)
     end
     if #rec.rolls==0 and rec.winner==nil and rec.status=="Rolling" then
         -- A roll can arrive before the first choice; leave status as Rolling.
+    end
+    if rec.winner and Key(Resolve(rec.winner))==Key(MyName()) and FLJ.SendSelfLoot then
+        FLJ.SendSelfLoot(rec)
     end
     Notify()
     return true
