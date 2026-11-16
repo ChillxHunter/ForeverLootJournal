@@ -1,16 +1,17 @@
--- Forever Loot Journal: Journal-inspired browsable loot and player archive
+-- Forever Loot Journal 1.3.0: modern dark-blue / gold WoW journal
 local addonName, FLJ = ...
 FLJ.UI = FLJ.UI or {}
 local UI = FLJ.UI
 local W, H = 1100, 830
-local gold = {1, .80, .31}
-local parchment = {.91, .82, .62}
-local muted = {.63, .61, .55}
-local panel = {.085, .073, .061, 1}
-local shadow = {.038, .034, .029, 1}
+local gold = {1, .80, .27}
+local parchment = {.87, .91, .98}
+local muted = {.59, .67, .77}
+local panel = {.030, .048, .081, 1}
+local shadow = {.012, .021, .037, 1}
 local currentTab, gearFilter, searchText, playerSearch, chosenPlayer = "loot", "all", "", "", nil
 local selectedID, listOffset, playerOffset, detailRollOffset = nil, 0, 0, 0
 local frame, itemRows, playerRows, detail, dropdown, dropdownRows
+local headerTitle,headerSubtitle,headerEmblem
 local searchBox, playerSearchBox, playerLabel, titleText, countText, listEmpty
 local tabButtons, filterButtons, clearPopup
 local craftingPane, lootListPanel, craftingRows, craftingCount, craftingDetail, craftingSearch
@@ -68,8 +69,10 @@ end
 local function Panel(parent,x,y,w,h,bg)
     local p=CreateFrame("Frame", nil, parent)
     p:SetSize(w,h); p:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
-    Fill(p,bg or panel)
-    Border(p,.30,.23,.14,1)
+    local base=bg or panel
+    local level=(base[1]+base[2]+base[3])/3
+    Fill(p,{.017+level*.23,.029+level*.33,.050+level*.52,base[4] or 1})
+    Border(p,.21,.31,.44,1)
     return p
 end
 local function Button(parent,x,y,w,h,text,callback)
@@ -77,10 +80,10 @@ local function Button(parent,x,y,w,h,text,callback)
     b:SetSize(w,h); b:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
     b:EnableMouse(true)
     b:RegisterForClicks("LeftButtonUp")
-    b.base=Fill(b,{.16,.127,.087,1})
-    Border(b,.39,.30,.17,1)
-    b.highlight=MakeTexture(b,"ARTWORK",{.73,.54,.20,.19}); b.highlight:SetAllPoints(); b.highlight:Hide()
-    b.label=Label(b,text or "",12,gold,"CENTER"); b.label:SetAllPoints()
+    b.base=Fill(b,{.064,.094,.145,1})
+    Border(b,.30,.40,.51,1)
+    b.highlight=MakeTexture(b,"ARTWORK",{.72,.51,.14,.18}); b.highlight:SetAllPoints(); b.highlight:Hide()
+    b.label=Label(b,text or "",12,parchment,"CENTER"); b.label:SetAllPoints()
     b.activeEdge=MakeTexture(b,"OVERLAY",{.98,.77,.27,1})
     b.activeEdge:SetPoint("BOTTOMLEFT",b,"BOTTOMLEFT",3,3)
     b.activeEdge:SetPoint("BOTTOMRIGHT",b,"BOTTOMRIGHT",-3,3)
@@ -182,7 +185,13 @@ local function FilteredPlayers()
     end
     return rows
 end
+local function DisplayEnabled(key)
+    local db=FLJ.GetDB and FLJ.GetDB()
+    local options=db and db.ui and db.ui.displayOptions
+    return type(options)~="table" or options[key]~=false
+end
 local function TooltipOnEnter(self)
+    if not DisplayEnabled("itemTooltips") then return end
     local rec=self.record
     if rec and rec.link then
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
@@ -246,9 +255,9 @@ local function MakeItemRow(parent,index)
     local r=CreateFrame("Button",nil,parent)
     r:SetSize(776,ITEM_ROW_HEIGHT-4)
     r:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-y)
-    r.background=Fill(r,{.12,.103,.079,1})
-    Border(r,.29,.23,.15,1)
-    r.selected=MakeTexture(r,"BORDER",{.55,.39,.13,.25}); r.selected:SetAllPoints(); r.selected:Hide()
+    r.background=Fill(r,{.050,.076,.118,1})
+    Border(r,.23,.34,.48,1)
+    r.selected=MakeTexture(r,"BORDER",{.42,.33,.10,.31}); r.selected:SetAllPoints(); r.selected:Hide()
     r.icon=Icon(r,8,6,41)
     r.itemName=Label(r,"",14,gold)
     r.itemName:SetPoint("TOPLEFT",r,"TOPLEFT",60,-7)
@@ -263,8 +272,8 @@ local function MakeItemRow(parent,index)
     r.when=Label(r,"",10,muted,"RIGHT")
     r.when:SetPoint("TOPRIGHT",r,"TOPRIGHT",-10,-31)
     r.when:SetWidth(280)
-    r:SetScript("OnEnter",function(self) self.background:SetColorTexture(.18,.14,.09,1) end)
-    r:SetScript("OnLeave",function(self) self.background:SetColorTexture(.12,.103,.079,1) end)
+    r:SetScript("OnEnter",function(self) self.background:SetColorTexture(.10,.15,.22,1) end)
+    r:SetScript("OnLeave",function(self) self.background:SetColorTexture(.050,.076,.118,1) end)
     r:SetScript("OnClick",function(self)
         if self.record then selectedID=self.record.id; detailRollOffset=0; UI.Refresh() end
     end)
@@ -287,9 +296,9 @@ end
 local function SetPlayerRow(r,pl)
     r.player=pl
     r.name:SetText(pl.name or "Unknown")
-    r.name:SetTextColor(Color(PlayerColor(pl.class)))
+    r.name:SetTextColor(Color(DisplayEnabled("classColors") and PlayerColor(pl.class) or parchment))
     r.meta:SetText((pl.level and ("Lv "..pl.level.."  ") or "")..(pl.class or "Class unknown").."   |   "..tostring(pl.lootCount or 0).." won")
-    r.live:SetShown(pl.current and true or false)
+    r.live:SetShown(pl.current and DisplayEnabled("groupMarkers") or false)
     r.portrait:SetPlayer(pl)
     r.selected:SetShown(chosenPlayer and T(chosenPlayer)==T(pl.name))
     r:Show()
@@ -298,8 +307,8 @@ local function MakePlayerRow(parent,index)
     local y=10+(index-1)*PLAYER_ROW_HEIGHT
     local r=CreateFrame("Button",nil,parent)
     r:SetSize(247,38); r:SetPoint("TOPLEFT",parent,"TOPLEFT",5,-y)
-    r.background=Fill(r,{.12,.11,.087,1})
-    r.selected=MakeTexture(r,"BORDER",{.50,.35,.11,.24});r.selected:SetAllPoints();r.selected:Hide()
+    r.background=Fill(r,{.055,.082,.125,1})
+    r.selected=MakeTexture(r,"BORDER",{.57,.42,.12,.33});r.selected:SetAllPoints();r.selected:Hide()
     r.portrait=ClassPortrait(r,5,5,28)
     r.name=Label(r,"",12,parchment)
     r.name:SetPoint("TOPLEFT",r,"TOPLEFT",40,-3);r.name:SetWidth(178)
@@ -314,7 +323,7 @@ local function MakePlayerRow(parent,index)
     Border(r.live,.23,.3,.18,1)
     r:RegisterForClicks("LeftButtonUp","RightButtonUp")
     r:SetScript("OnEnter",function(self)
-        self.background:SetColorTexture(.21,.16,.094,1)
+        self.background:SetColorTexture(.13,.19,.27,1)
         if self.player and GameTooltip then
             GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
             GameTooltip:AddLine(self.player.name or "Player",1,.82,.33)
@@ -324,7 +333,7 @@ local function MakePlayerRow(parent,index)
         end
     end)
     r:SetScript("OnLeave",function(self)
-        self.background:SetColorTexture(.12,.11,.087,1)
+        self.background:SetColorTexture(.055,.082,.125,1)
         if GameTooltip then GameTooltip:Hide() end
     end)
     r:SetScript("OnClick",function(self,mouseButton)
@@ -348,7 +357,8 @@ end
 local function MakeDetail(parent)
     local p=Panel(parent,288,506,797,280,{.079,.073,.064,1})
     local hdr=p:CreateTexture(nil,"ARTWORK")
-    hdr:SetTexture(TEXTURE.."detail")
+    hdr:SetTexture("Interface\Buttons\WHITE8X8")
+    hdr:SetVertexColor(.066,.113,.183,1)
     hdr:SetPoint("TOPLEFT",1,-1); hdr:SetPoint("TOPRIGHT",-1,-1); hdr:SetHeight(37)
     p.header=Label(p,"ITEM DETAILS & ROLL HISTORY",15,gold)
     p.header:SetPoint("TOPLEFT",p,"TOPLEFT",14,-10)
@@ -695,7 +705,7 @@ end
 local function RefreshFilters()
     for k,b in pairs(filterButtons or {}) do
         local chosen=gearFilter==k
-        b.base:SetColorTexture(chosen and .39 or .16,chosen and .27 or .127,chosen and .095 or .087,1)
+        b.base:SetColorTexture(chosen and .33 or .065,chosen and .23 or .10,chosen and .055 or .15,1)
         b.label:SetTextColor(chosen and 1 or .73,chosen and .88 or .63,chosen and .46 or .32)
         if b.activeEdge then b.activeEdge:SetShown(chosen) end
     end
@@ -854,6 +864,9 @@ end
 
 function UI.Refresh()
     if not frame or not frame:IsShown() then return end
+    if FLJ.SettingsUI and FLJ.SettingsUI.IsShown and FLJ.SettingsUI.IsShown() then
+        FLJ.SettingsUI.Refresh()
+    end
     local crafting=gearFilter=="crafting"
     if lootListPanel then lootListPanel:SetShown(not crafting) end
     if detail then detail:SetShown(not crafting) end
@@ -915,6 +928,18 @@ function FLJ.ShowClearConfirm()
     end
     StaticPopup_Show("FOREVER_LOOT_JOURNAL_CLEAR")
 end
+function UI.SetHeaderMode(mode)
+    if not headerTitle then return end
+    if mode=="settings" then
+        headerTitle:SetText("Settings")
+        headerSubtitle:SetText("Rarity registration  |  Storage  |  Display  |  Profiles")
+        if headerEmblem then headerEmblem:SetTexture("Interface\\Icons\\Trade_Engineering") end
+    else
+        headerTitle:SetText("Forever Loot Journal")
+        headerSubtitle:SetText("Loot tracker  |  Crafting journal  |  Party & raid history")
+        if headerEmblem then headerEmblem:SetTexture("Interface\\Icons\\INV_Misc_Book_09") end
+    end
+end
 local function MakeFrame()
     frame=CreateFrame("Frame","ForeverLootJournalFrame",UIParent,"BackdropTemplate")
     frame:SetSize(W,H)
@@ -935,39 +960,48 @@ local function MakeFrame()
     frame:SetScript("OnMouseDown",function() if dropdown then dropdown:Hide() end end)
     table.insert(UISpecialFrames,"ForeverLootJournalFrame")
     Fill(frame,shadow)
-    Border(frame,.46,.35,.19,2)
-    local inner=Panel(frame,9,9,W-18,H-18,{.16,.122,.077,1})
-    local velvet=inner:CreateTexture(nil,"BACKGROUND")
-    velvet:SetTexture(TEXTURE.."paper")
-    velvet:SetAllPoints();velvet:SetAlpha(.84)
-    local bgShade=MakeTexture(frame,"BORDER",{.02,.015,.009,.76})
-    bgShade:SetPoint("TOPLEFT",frame,"TOPLEFT",15,-16)
-    bgShade:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-15,15)
+    Border(frame,.76,.54,.20,3)
+    local inner=Panel(frame,7,7,W-14,H-14,{.025,.044,.072,1})
+    local background=MakeTexture(frame,"BORDER",{.009,.021,.040,.94})
+    background:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-120)
+    background:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-12,12)
     local hdr=frame:CreateTexture(nil,"ARTWORK")
-    hdr:SetTexture(TEXTURE.."banner")
-    hdr:SetPoint("TOPLEFT",frame,"TOPLEFT",16,-15)
-    hdr:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-16,-15)
-    hdr:SetHeight(103)
-    local lead=Label(frame,"FOREVER",18,{.88,.72,.37},"CENTER")
-    lead:SetPoint("TOP",frame,"TOP",0,-21)
-    lead:SetWidth(330)
-    local title=Label(frame,"LOOT JOURNAL",27,{1,.84,.45},"CENTER")
-    title:SetPoint("TOP",frame,"TOP",0,-44)
-    title:SetWidth(450)
-    local sub=Label(frame,"An archive of the treasures and rolls shared on your adventures",10,parchment,"CENTER")
-    sub:SetPoint("TOP",frame,"TOP",0,-77);sub:SetWidth(550)
-    local close=Button(frame,1053,19,27,25,"X",function()frame:Hide()end)
-    close.label:SetTextColor(1,.30,.20)
-    local storageTitle=Label(frame,"SAVED LOOT LIMIT",10,parchment)
-    storageTitle:SetPoint("TOPLEFT",frame,"TOPLEFT",841,-31)
-    storageProfileButton=Button(frame,832,65,230,32,"MONSTER PC  -  5,000",function()
-        storageProfileMenu:SetShown(not storageProfileMenu:IsShown())
-        RefreshStorageProfile()
+    hdr:SetTexture(TEXTURE.."modern_header")
+    hdr:SetPoint("TOPLEFT",frame,"TOPLEFT",11,-11)
+    hdr:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-11,-11)
+    hdr:SetHeight(102)
+    local divider=MakeTexture(frame,"OVERLAY",{.94,.67,.17,1})
+    divider:SetPoint("TOPLEFT",frame,"TOPLEFT",14,-111)
+    divider:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-14,-111)
+    divider:SetHeight(2)
+    local emblem=Panel(frame,21,22,58,58,{.02,.09,.20,1})
+    Border(emblem,.74,.54,.20,2)
+    headerEmblem=emblem:CreateTexture(nil,"ARTWORK")
+    headerEmblem:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    headerEmblem:SetPoint("TOPLEFT",emblem,"TOPLEFT",5,-5)
+    headerEmblem:SetPoint("BOTTOMRIGHT",emblem,"BOTTOMRIGHT",-5,5)
+    headerTitle=Label(frame,"Forever Loot Journal",27,gold)
+    headerTitle:SetPoint("TOPLEFT",frame,"TOPLEFT",94,-28)
+    headerTitle:SetWidth(680)
+    headerSubtitle=Label(frame,"Loot tracker  |  Crafting journal  |  Party & raid history",11,parchment)
+    headerSubtitle:SetPoint("TOPLEFT",frame,"TOPLEFT",96,-72)
+    headerSubtitle:SetWidth(680)
+    local settingsButton=Button(frame,992,31,46,41,"",function()
+        if FLJ.SettingsUI then FLJ.SettingsUI.Toggle() end
     end)
-    storageProfileButton:SetFrameLevel(frame:GetFrameLevel()+15)
-    BuildStorageProfileMenu(frame)
-    BuildRarityRegistration(frame)
-    local side=Panel(frame,13,124,260,662,{.094,.073,.051,1})
+    settingsButton:SetFrameLevel(frame:GetFrameLevel()+12)
+    local settingsIcon=settingsButton:CreateTexture(nil,"ARTWORK")
+    settingsIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
+    settingsIcon:SetPoint("CENTER",settingsButton,"CENTER",0,0)
+    settingsIcon:SetSize(29,29)
+    local close=Button(frame,1044,31,42,41,"X",function()
+        if FLJ.SettingsUI then FLJ.SettingsUI.Hide() end
+        frame:Hide()
+    end)
+    close:SetFrameLevel(frame:GetFrameLevel()+12)
+    close.base:SetColorTexture(.27,.055,.045,1)
+    close.label:SetTextColor(1,.43,.28)
+    local side=Panel(frame,13,124,260,662,{.055,.078,.113,1})
     local sh=Label(side,"PARTY & RAID MEMBERS",14,gold)
     sh:SetPoint("TOPLEFT",side,"TOPLEFT",12,-12)
     local sdesc=Label(side,"Current party + everyone recorded",10,muted)
@@ -990,7 +1024,7 @@ local function MakeFrame()
     Border(legendDot,.23,.3,.18,1)
     local liveText=Label(side,"Green = currently in your group",10,{.62,.79,.53})
     liveText:SetPoint("LEFT",legendDot,"RIGHT",6,0)
-    local roster=Panel(side,0,170,260,470,{.067,.061,.049,1})
+    local roster=Panel(side,0,170,260,470,{.031,.052,.084,1})
     playerRows={}
     for i=1,PLAYER_VISIBLE do playerRows[i]=MakePlayerRow(roster,i) end
     ScrollWheel(roster,function(delta)
@@ -998,7 +1032,7 @@ local function MakeFrame()
         UI.Refresh()
     end)
     BuildDropdown(side)
-    local mainTop=Panel(frame,284,124,803,61,{.105,.085,.055,1})
+    local mainTop=Panel(frame,284,124,803,61,{.076,.12,.18,1})
     titleText=Label(mainTop,"LOOT ARCHIVE",17,gold)
     titleText:SetPoint("TOPLEFT",mainTop,"TOPLEFT",14,-11)
     countText=Label(mainTop,"",10,muted)
@@ -1006,7 +1040,7 @@ local function MakeFrame()
     searchBox=Edit(frame,704,137,372,35,"Search gear, winner, zone...",function(s)
         searchText=T(s);listOffset=0;UI.Refresh()
     end)
-    local filt=Panel(frame,284,193,803,41,{.091,.081,.064,1})
+    local filt=Panel(frame,284,193,803,41,{.05,.076,.12,1})
     -- Keep filter controls above nearby noninteractive artwork and frames.
     filt:SetFrameLevel(frame:GetFrameLevel()+12)
     filterButtons={}
@@ -1023,7 +1057,7 @@ local function MakeFrame()
         UI.Refresh()
     end)
     Button(filt,686,5,107,30,"Clear log",function() FLJ.ShowClearConfirm() end)
-    local list=Panel(frame,284,241,803,257,{.068,.057,.045,1})
+    local list=Panel(frame,284,241,803,257,{.04,.063,.105,1})
     lootListPanel=list
     itemRows={}
     for i=1,ITEM_VISIBLE do itemRows[i]=MakeItemRow(list,i) end
@@ -1036,10 +1070,11 @@ local function MakeFrame()
     end)
     detail=MakeDetail(frame)
     MakeCraftingPane(frame)
-    local footer=Panel(frame,13,796,W-26,26,{.083,.067,.046,1})
+    local footer=Panel(frame,13,796,W-26,26,{.030,.056,.10,1})
     local foot=Label(footer,"/flj to open   |   Mouse wheel to scroll   |   Shift-click item to link it   |   Account-wide saved history",11,parchment,"CENTER")
     foot:SetPoint("CENTER",footer,"CENTER",0,0)
     foot:SetWidth(W-48)
+    if FLJ.SettingsUI and FLJ.SettingsUI.Build then FLJ.SettingsUI.Build(frame) end
     frame:Hide()
 end
 local function FitWindow()
@@ -1058,6 +1093,7 @@ end
 function FLJ.Toggle(players)
     if not frame then MakeFrame() end
     if frame:IsShown() and not players then
+        if FLJ.SettingsUI then FLJ.SettingsUI.Hide() end
         frame:Hide()
     else
         FitWindow()
