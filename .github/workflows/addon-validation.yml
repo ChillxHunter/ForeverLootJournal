@@ -86,10 +86,11 @@ jobs:
           core = Path('Core.lua').read_text(encoding='utf-8')
           assert 'EXTREME!!' in core and 'limit=10000' in core
           assert 'FLJ.RarityOptions=RARITIES' in core and 'RegistrationAllowed' in core
-          assert 'BuildRarityRegistration(frame)' in ui
-          assert 'Previously recorded items are never deleted.' in ui
-          assert 'BuildStorageProfileMenu(frame)' in ui
-          assert 'FOREVER_LOOT_JOURNAL_STORAGE_PROFILE' in ui
+          settings = Path('ModernSettings.lua').read_text(encoding='utf-8')
+          assert 'MakeRarities(rarity,true)' in settings
+          assert 'Previously saved items are never removed.' in settings
+          assert 'MakeStorage(store)' in settings
+          assert 'FLJ_MODERN_STORAGE_CONFIRM' in settings
           assert 'SelectGearFilter("crafting")' in ui and 'MakeCraftingPane(frame)' in ui
           assert 'recipeID="loot-"' in ui and 'tonumber(r.classID)==9' in ui
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
