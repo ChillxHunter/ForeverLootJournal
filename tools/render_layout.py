@@ -83,7 +83,13 @@ def render(source,target):
             elif 'AddOns\\ForeverLootJournal\\Media\\' in texture:
                 name=texture.split('\\')[-1]
                 path=BASE/'Media'/(name if '.' in name else name+'.tga')
-                if path.exists(): tile=Image.open(path).convert('RGBA').resize(tile.size,Image.Resampling.LANCZOS)
+                if path.exists():
+                    source=Image.open(path).convert('RGBA')
+                    coords=n['coords']
+                    if len(coords)==4:
+                        l,r,t,b=coords
+                        source=source.crop((round(l*source.width),round(t*source.height),round(r*source.width),round(b*source.height)))
+                    tile=source.resize(tile.size,Image.Resampling.LANCZOS)
             elif 'WHITE8X8' in texture:
                 tile.paste((255,255,255,255),(0,0,tile.width,tile.height))
             elif texture:

@@ -62,6 +62,7 @@ local function MakeWidget(parent,kind)
     end
     function f:CreateFontString(_,layer,template)
         local t=MakeWidget(self,"FontString")
+        t.layer=layer
         self.fontStrings[#self.fontStrings+1]=t
         return t
     end
@@ -132,6 +133,7 @@ for i,name in ipairs({"Poor","Common","Uncommon","Rare","Epic","Legendary","Arti
 end
 local logs={}
 print=function(s)logs[#logs+1]=s end
+assert(loadfile("Theme.lua"))("ForeverLootJournal",addon)
 assert(loadfile("UI.lua"))("ForeverLootJournal",addon)
 assert(loadfile("ModernSettings.lua"))("ForeverLootJournal",addon)
 assert(addon.Toggle,"journal toggle missing")
@@ -141,13 +143,19 @@ assert(main and main:IsShown(),"journal not shown")
 assert(addon.SettingsUI and addon.SettingsUI.Build,"settings module missing")
 local headerTex=false
 for _,frame in ipairs(frames) do
-    if frame.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\modern_header" then
+    if frame.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\d_header" then
         headerTex=true
     end
 end
 assert(headerTex,"modern custom header artwork not applied")
 addon.SettingsUI.Show("general")
 assert(addon.SettingsUI.IsShown(),"general settings page failed to open")
+assert(main:GetHeight()==560,"option D settings must use the compact window")
+for _,f in ipairs(frames) do
+    if f.parent==main and (f.width or 0)>250 and (f.height or 0)>100 and f.width~=1074 then
+        assert(not f:IsShown(),"journal panel leaked behind compact settings")
+    end
+end
 local textSettings=false
 for _,f in ipairs(frames) do
     if f.kind=="FontString" and f.text=="Settings" then textSettings=true end
@@ -194,6 +202,7 @@ addon.SettingsUI.Refresh()
 assert(ClickButton("Return to Loot Journal"),"return navigation missing")
 assert(not addon.SettingsUI.IsShown(),"couldn't close settings")
 assert(main:IsShown(),"returning to journal closed the addon")
+assert(main:GetHeight()==786,"returning to the journal must restore its height")
 assert(#db.records==1000,"navigation changed saved data")
 io.write("Modern D-style Settings and Journal integration tests passed\n")
 

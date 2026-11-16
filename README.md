@@ -1,5 +1,15 @@
 # Forever Loot Journal
 
+## Version 1.5.0 - option D charcoal and metal interface
+
+The settings window follows the bottom-right **D: Settings & Filters** reference: a compact 1100x560 window with charcoal materials, silver edging, restrained gold trim, a gear crest, a narrow navigation menu, eight rarity cards and five storage cards. The active PC tier has a gold border and check badge; EXTREME!! uses a purple border. All numbers, labels and checks are live Lua controls.
+
+The journal shares these materials and a compact header with an F crest. The castle banner is replaced. Opening Settings hides the journal panels; returning restores the journal size, active filters and item selection. Loot, rolls, players, crafting recipes and saved preferences continue using the existing database.
+
+**Install:** Close WoW and replace `Interface/AddOns/ForeverLootJournal` with the folder in the v1.5.0 ZIP. Keep the `WTF` folder. Enter `/flj` and click the gear icon to view Settings.
+
+**Validation:** The seven addon test suites include compact-window sizing, hidden journal panels, navigation, settings persistence, delete confirmation, item selection and non-destructive filtering. Source-rendered previews use fixture records and approximate the WoW client's fonts/icons. In-game rendering has not been verified by the author of this update.
+
 ## Version 1.4.0 - visible fantasy header and clearer journal
 
 - Fixes the opaque child panel that covered the title, custom banner and gold frame. The background now uses root textures, preserving the intended draw order.

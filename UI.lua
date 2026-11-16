@@ -1,11 +1,13 @@
--- Forever Loot Journal 1.4.0: readable dark-blue / gold WoW journal
+-- Forever Loot Journal 1.5.0: option D charcoal / metal journal.
 local addonName, FLJ = ...
 FLJ.UI = FLJ.UI or {}
 local UI = FLJ.UI
-local W, H = 1100, 830
+local W, H = 1100, 786
+local Theme=FLJ.Theme
+local journalParts={}
 local gold = {1, .80, .27}
 local parchment = {.87, .91, .98}
-local muted = {.59, .67, .77}
+local muted = {.62, .64, .69}
 local panel = {.030, .048, .081, 1}
 local shadow = {.012, .021, .037, 1}
 local currentTab, gearFilter, searchText, playerSearch, chosenPlayer = "loot", "all", "", "", nil
@@ -48,6 +50,7 @@ local function Fill(parent,col,inset)
     return tx
 end
 local function Border(parent,r,g,b,thick)
+    if b>r+.08 then r,g,b=.29,.30,.33 end
     local size=thick or 1
     local a=parent:CreateTexture(nil,"BORDER") a:SetColorTexture(r,g,b,1)
     a:SetPoint("TOPLEFT"); a:SetPoint("TOPRIGHT"); a:SetHeight(size)
@@ -68,10 +71,12 @@ local function Label(parent,text,size,col,justify)
     return fs
 end
 local function Panel(parent,x,y,w,h,bg)
+    if parent==frame and y>=120 then y=y-44 end
     local p=CreateFrame("Frame", nil, parent)
     p:SetSize(w,h); p:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
     Fill(p,bg or panel)
     Border(p,.21,.31,.44,1)
+    Theme.Paint(p,"d_panel","BORDER",8)
     return p
 end
 local function Button(parent,x,y,w,h,text,callback)
@@ -81,6 +86,9 @@ local function Button(parent,x,y,w,h,text,callback)
     b:RegisterForClicks("LeftButtonUp")
     b.base=Fill(b,{.064,.094,.145,1})
     Border(b,.30,.40,.51,1)
+    b.chrome=Theme.Paint(b,"d_button","BORDER",7)
+    b.activeArt=Theme.Paint(b,"d_active","ARTWORK",7)
+    b.activeArt:SetShown(false)
     b.highlight=MakeTexture(b,"ARTWORK",{.72,.51,.14,.18}); b.highlight:SetAllPoints(); b.highlight:Hide()
     b.label=Label(b,text or "",12,parchment,"CENTER"); b.label:SetAllPoints()
     b.activeEdge=MakeTexture(b,"OVERLAY",{.98,.77,.27,1})
@@ -357,7 +365,7 @@ local function MakeDetail(parent)
     local p=Panel(parent,288,506,797,280,{.030,.048,.081,1})
     local hdr=p:CreateTexture(nil,"ARTWORK")
     hdr:SetTexture("Interface\\Buttons\\WHITE8X8")
-    hdr:SetVertexColor(.066,.113,.183,1)
+    hdr:SetVertexColor(.055,.059,.070,1)
     hdr:SetPoint("TOPLEFT",1,-1); hdr:SetPoint("TOPRIGHT",-1,-1); hdr:SetHeight(37)
     p.header=Label(p,"ITEM DETAILS & ROLL HISTORY",15,gold)
     p.header:SetPoint("TOPLEFT",p,"TOPLEFT",14,-10)
@@ -712,6 +720,7 @@ local function RefreshFilters()
         b.base:SetColorTexture(chosen and .33 or .065,chosen and .23 or .10,chosen and .055 or .15,1)
         b.label:SetTextColor(chosen and 1 or .73,chosen and .88 or .63,chosen and .46 or .32)
         if b.activeEdge then b.activeEdge:SetShown(chosen) end
+        if b.activeArt then b.activeArt:SetShown(chosen) end
     end
 end
 local function SelectGearFilter(nextFilter)
@@ -870,6 +879,7 @@ function UI.Refresh()
     if not frame or not frame:IsShown() then return end
     if FLJ.SettingsUI and FLJ.SettingsUI.IsShown and FLJ.SettingsUI.IsShown() then
         FLJ.SettingsUI.Refresh()
+        return
     end
     local crafting=gearFilter=="crafting"
     if qualityFilterButton then qualityFilterButton:SetShown(not crafting) end
@@ -943,15 +953,22 @@ function FLJ.ShowClearConfirm()
 end
 function UI.SetHeaderMode(mode)
     if not headerTitle then return end
+    local settings=mode=="settings"
+    for _,p in ipairs(journalParts) do p:SetShown(not settings) end
+    frame:SetHeight(settings and 560 or H)
+    archiveSummary:SetShown(not settings)
+    if dropdown then dropdown:Hide() end
     if mode=="settings" then
         headerTitle:SetText("Settings")
-        headerSubtitle:SetText("Rarity registration  |  Storage  |  Display  |  Profiles")
-        if headerEmblem then headerEmblem:SetTexture("Interface\\Icons\\Trade_Engineering") end
+        headerSubtitle:SetText("")
+        if headerEmblem then headerEmblem:SetTexture(TEXTURE.."d_crest") end
     else
         headerTitle:SetText("Forever Loot Journal")
         headerSubtitle:SetText("Loot tracker  |  Crafting journal  |  Party & raid history")
-        if headerEmblem then headerEmblem:SetTexture("Interface\\Icons\\INV_Misc_Book_09") end
+        if headerEmblem then headerEmblem:SetTexture(TEXTURE.."d_journal_crest") end
     end
+    if UI.FitWindow then UI.FitWindow() end
+    if not settings then UI.Refresh() end
 end
 local function MakeFrame()
     frame=CreateFrame("Frame","ForeverLootJournalFrame",UIParent,"BackdropTemplate")
@@ -964,7 +981,7 @@ local function MakeFrame()
     -- can capture mouse clicks intended for filter buttons and other controls.
     local dragHandle=CreateFrame("Frame",nil,frame)
     dragHandle:SetPoint("TOPLEFT",frame,"TOPLEFT",16,-15)
-    dragHandle:SetSize(960,101)
+    dragHandle:SetSize(960,54)
     dragHandle:EnableMouse(true)
     dragHandle:RegisterForDrag("LeftButton")
     dragHandle:SetScript("OnDragStart",function() frame:StartMoving() end)
@@ -973,46 +990,39 @@ local function MakeFrame()
     frame:SetScript("OnMouseDown",function() if dropdown then dropdown:Hide() end end)
     table.insert(UISpecialFrames,"ForeverLootJournalFrame")
     Fill(frame,shadow)
-    Border(frame,.76,.54,.20,3)
+    Theme.Paint(frame,"d_window","BORDER",24)
     -- Root artwork must stay on the root. An opaque full-size child frame
     -- renders above its parent's title, banner, borders and other regions.
     Fill(frame,{.025,.044,.072,1},7)
-    local background=MakeTexture(frame,"BORDER",{.009,.021,.040,.94})
-    background:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-120)
-    background:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-12,12)
     local hdr=frame:CreateTexture(nil,"ARTWORK")
-    hdr:SetTexture(TEXTURE.."modern_header")
+    hdr:SetTexture(TEXTURE.."d_header")
     hdr:SetPoint("TOPLEFT",frame,"TOPLEFT",11,-11)
     hdr:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-11,-11)
-    hdr:SetHeight(102)
-    local divider=MakeTexture(frame,"OVERLAY",{.94,.67,.17,1})
-    divider:SetPoint("TOPLEFT",frame,"TOPLEFT",14,-111)
-    divider:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-14,-111)
-    divider:SetHeight(2)
-    local emblem=Panel(frame,21,22,58,58,{.02,.09,.20,1})
-    Border(emblem,.74,.54,.20,2)
+    hdr:SetHeight(58)
+    local emblem=CreateFrame("Frame",nil,frame)
+    emblem:SetPoint("TOPLEFT",frame,"TOPLEFT",15,-5)
+    emblem:SetSize(68,68)
     headerEmblem=emblem:CreateTexture(nil,"ARTWORK")
-    headerEmblem:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
-    headerEmblem:SetPoint("TOPLEFT",emblem,"TOPLEFT",5,-5)
-    headerEmblem:SetPoint("BOTTOMRIGHT",emblem,"BOTTOMRIGHT",-5,5)
-    headerTitle=Label(frame,"Forever Loot Journal",27,gold)
-    headerTitle:SetPoint("TOPLEFT",frame,"TOPLEFT",94,-28)
+    headerEmblem:SetTexture(TEXTURE.."d_journal_crest")
+    headerEmblem:SetAllPoints()
+    headerTitle=Label(frame,"Forever Loot Journal",25,gold)
+    headerTitle:SetPoint("TOPLEFT",frame,"TOPLEFT",91,-22)
     headerTitle:SetWidth(680)
     headerSubtitle=Label(frame,"Loot tracker  |  Crafting journal  |  Party & raid history",11,parchment)
-    headerSubtitle:SetPoint("TOPLEFT",frame,"TOPLEFT",96,-72)
-    headerSubtitle:SetWidth(680)
+    headerSubtitle:SetPoint("TOPLEFT",frame,"TOPLEFT",93,-51)
+    headerSubtitle:SetWidth(450)
     archiveSummary=Label(frame,"",11,muted)
-    archiveSummary:SetPoint("TOPLEFT",frame,"TOPLEFT",560,-77)
+    archiveSummary:SetPoint("TOPLEFT",frame,"TOPLEFT",560,-51)
     archiveSummary:SetWidth(420)
-    local settingsButton=Button(frame,992,31,46,41,"",function()
+    local settingsButton=Button(frame,1006,19,32,30,"",function()
         if FLJ.SettingsUI then FLJ.SettingsUI.Toggle() end
     end)
     settingsButton:SetFrameLevel(frame:GetFrameLevel()+12)
     local settingsIcon=settingsButton:CreateTexture(nil,"ARTWORK")
-    settingsIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
+    settingsIcon:SetTexture(TEXTURE.."d_crest")
     settingsIcon:SetPoint("CENTER",settingsButton,"CENTER",0,0)
-    settingsIcon:SetSize(29,29)
-    local close=Button(frame,1044,31,42,41,"X",function()
+    settingsIcon:SetSize(28,28)
+    local close=Button(frame,1048,19,30,30,"X",function()
         if FLJ.SettingsUI then FLJ.SettingsUI.Hide() end
         frame:Hide()
     end)
@@ -1064,7 +1074,8 @@ local function MakeFrame()
     titleText:SetPoint("TOPLEFT",mainTop,"TOPLEFT",14,-11)
     countText=Label(mainTop,"",10,muted)
     countText:SetPoint("TOPLEFT",mainTop,"TOPLEFT",14,-37)
-    searchBox=Edit(frame,720,137,356,35,"Search gear, winner, zone...",function(s)
+    local mainSearchWrap
+    searchBox,mainSearchWrap=Edit(frame,720,137,356,35,"Search gear, winner, zone...",function(s)
         searchText=T(s);listOffset=0;UI.Refresh()
     end)
     local filt=Panel(frame,284,193,803,41,{.05,.076,.12,1})
@@ -1117,6 +1128,7 @@ local function MakeFrame()
     local foot=Label(footer,"/flj to open   |   Mouse wheel to scroll   |   Shift-click item to link it   |   Account-wide saved history",11,parchment,"CENTER")
     foot:SetPoint("CENTER",footer,"CENTER",0,0)
     foot:SetWidth(W-48)
+    journalParts={side,mainTop,mainSearchWrap,filt,list,detail,craftingPane,footer}
     if FLJ.SettingsUI and FLJ.SettingsUI.Build then FLJ.SettingsUI.Build(frame) end
     frame:Hide()
 end
@@ -1124,15 +1136,17 @@ local function FitWindow()
     if not frame or not UIParent then return end
     local availableWidth=math.max(1,(UIParent:GetWidth() or W)-48)
     local availableHeight=math.max(1,(UIParent:GetHeight() or H)-80)
-    local scale=math.min(1,availableWidth/W,availableHeight/H)
+    local height=frame:GetHeight() or H
+    local scale=math.min(1,availableWidth/W,availableHeight/height)
     frame:SetScale(scale)
     frame:ClearAllPoints()
     -- Bias the journal upward when space allows; this keeps the extended item
     -- details and footer further from the bottom of the physical display.
-    local spare=(UIParent:GetHeight() or H) - H*scale
+    local spare=(UIParent:GetHeight() or H) - height*scale
     local upward=math.max(0,math.min(28,(spare/2)-8))
     frame:SetPoint("CENTER",UIParent,"CENTER",0,upward)
 end
+UI.FitWindow=FitWindow
 function FLJ.Toggle(players)
     if not frame then MakeFrame() end
     if frame:IsShown() and not players then
