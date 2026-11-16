@@ -8,12 +8,23 @@ local function MakeWidget(parent,kind)
     function f:GetHeight() return self.height or 830 end
     function f:SetWidth(w) self.width=w end
     function f:SetHeight(h) self.height=h end
-    function f:SetPoint(...) self.points=self.points or {};self.points[#self.points+1]={...} end
+    function f:SetPoint(...)
+        local p={...}
+        self.points=self.points or {}
+        for i,old in ipairs(self.points) do
+            if old[1]==p[1] then self.points[i]=p;return end
+        end
+        self.points[#self.points+1]=p
+    end
     function f:ClearAllPoints() self.points={} end
     function f:SetAllPoints() self.full=true end
     function f:SetColorTexture(...) self.color={...} end
     function f:SetVertexColor(...) self.vertex={...} end
     function f:SetTexture(t) self.texture=t end
+    function f:AddMaskTexture(mask) self.masked=true end
+    function f:CreateMaskTexture(_,layer)
+        local t=MakeWidget(self,"MaskTexture");t.layer=layer;return t
+    end
     function f:SetTexCoord(...) self.coords={...} end
     function f:SetAlpha(a) self.alpha=a end
     function f:SetScale(s) self.scale=s end
@@ -25,7 +36,7 @@ local function MakeWidget(parent,kind)
     function f:RegisterForClicks(...) self.clicks={...} end
     function f:SetFrameStrata(v) self.strata=v end
     function f:SetFrameLevel(v) self.level=v end
-    function f:GetFrameLevel() return self.level or 1 end
+    function f:GetFrameLevel() return self.level or (self.parent and self.parent:GetFrameLevel()+1) or 1 end
     function f:GetParent() return self.parent end
     function f:SetScript(ev,fn) self.scripts[ev]=fn end
     function f:RegisterEvent(ev) self.events=self.events or {};self.events[ev]=true end
@@ -55,6 +66,7 @@ local function MakeWidget(parent,kind)
     end
     function f:CreateFontString(_,layer,template)
         local t=MakeWidget(self,"FontString")
+        t.layer=layer
         self.fontStrings[#self.fontStrings+1]=t
         return t
     end
@@ -125,6 +137,8 @@ for i,name in ipairs({"Poor","Common","Uncommon","Rare","Epic","Legendary","Arti
 end
 local logs={}
 print=function(s)logs[#logs+1]=s end
+assert(loadfile("Theme.lua"))("ForeverLootJournal",addon)
+assert(loadfile("Crafting.lua"))("ForeverLootJournal",addon)
 assert(loadfile("UI.lua"))("ForeverLootJournal",addon)
 assert(loadfile("ModernSettings.lua"))("ForeverLootJournal",addon)
 assert(addon.Toggle,"journal toggle missing")
@@ -134,13 +148,20 @@ assert(main and main:IsShown(),"journal not shown")
 assert(addon.SettingsUI and addon.SettingsUI.Build,"settings module missing")
 local headerTex=false
 for _,frame in ipairs(frames) do
-    if frame.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\modern_header" then
+    if frame.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\f_header" then
         headerTex=true
     end
 end
 assert(headerTex,"modern custom header artwork not applied")
-addon.SettingsUI.Show("general")
+addon.SettingsUI.Show()
+for _,f in ipairs(frames) do assert(not(f.label and f.label:GetText()=="General"),"redundant General page remains") end
 assert(addon.SettingsUI.IsShown(),"general settings page failed to open")
+assert(main:GetHeight()==560,"option D settings must use the compact window")
+for _,f in ipairs(frames) do
+    if f.parent==main and (f.width or 0)>250 and (f.height or 0)>100 and f.width~=1074 then
+        assert(not f:IsShown(),"journal panel leaked behind compact settings")
+    end
+end
 local textSettings=false
 for _,f in ipairs(frames) do
     if f.kind=="FontString" and f.text=="Settings" then textSettings=true end
@@ -187,5 +208,174 @@ addon.SettingsUI.Refresh()
 assert(ClickButton("Return to Loot Journal"),"return navigation missing")
 assert(not addon.SettingsUI.IsShown(),"couldn't close settings")
 assert(main:IsShown(),"returning to journal closed the addon")
+assert(main:GetHeight()==786,"returning to the journal must restore its height")
 assert(#db.records==1000,"navigation changed saved data")
 io.write("Modern D-style Settings and Journal integration tests passed\n")
+
+-- Regression: a full-window opaque child used to hide the root's entire
+-- fantasy banner and title while every interaction test still passed.
+for _,f in ipairs(frames) do
+    assert(not(f.kind=="Frame" and f.parent==main and
+        (f.width or 0)>=1080 and (f.height or 0)>=800),
+        "opaque child frame would cover the journal header")
+    if f.check and f.rarityColor then
+        assert(f.check.parent~=f and f.check.parent.parent==f,
+            "rarity checkmark must render inside its box, above the box background")
+    end
+end
+
+db.records={}
+db.players={
+    {name="Chillx-Ranger",class="HUNTER",level=35,race="Night Elf",guild="NORGE",current=true,lootCount=5},
+    {name="Dragon-Soulseeker",class="ROGUE",level=57,current=true,lootCount=2},
+    {name="Ivan-Overdrivaarn",class="WARRIOR",level=33,current=true,lootCount=1},
+    {name="Legolas-Thranduil",class="HUNTER",level=32,lootCount=0},
+    {name="Saint-Ramz",class="PRIEST",level=34,lootCount=0},
+}
+local samples={
+    {"Guerrilla Cleaver",2,2,"One-Handed Axes","Stranglethorn Vale","Chillx-Ranger",34},
+    {"Guardian's Pauldrons",4,4,"Plate","Onyxia's Lair","Ivan-Overdrivaarn",55},
+    {"Trueshot Bow",3,2,"Bows","Dire Maul","Chillx-Ranger",53},
+    {"Bindings of Power",4,4,"Leather","Molten Core","Dragon-Soulseeker",54},
+    {"Huntsman's Stoneclub",2,2,"One-Handed Maces","Stranglethorn Vale","Chillx-Ranger",40},
+    {"Double Mail Vest",2,4,"Mail","Stranglethorn Vale","Chillx-Ranger",43},
+    {"Duskwood Longbow",3,2,"Bows","Duskwood","Chillx-Ranger",35},
+    {"Worn Leather Boots",1,4,"Leather","Westfall","Dragon-Soulseeker",12},
+}
+ITEM_QUALITY_COLORS={
+    [1]={r=1,g=1,b=1},[2]={r=.12,g=1,b=.12},
+    [3]={r=.2,g=.57,b=1},[4]={r=.73,g=.34,b=1},
+}
+for i,v in ipairs(samples) do
+    db.records[i]={id=i,name=v[1],quality=v[2],classID=v[3],subtype=v[4],
+        zone=v[5],winner=v[6],itemLevel=v[7],time=1700000000-i*600,
+        status="Received",source="Group roll",icon="Interface\\Icons\\INV_Axe_04",
+        stats={{label="Agility",value=3},{label="Stamina",value=4},{label="Damage per second",value=17.67857170105}}}
+end
+db.records[1].rolls={
+    {name="Dragon-Soulseeker",action="Greed",value=92},
+    {name="Chillx-Ranger",class="HUNTER",action="Need",value=87,winner=true},
+    {name="Ivan-Overdrivaarn",action="Pass"},
+}
+addon.UI.Refresh()
+local visibleRows=0
+local selectedRows=0
+local rounded=false
+for _,f in ipairs(frames) do
+    if f.record and f.itemName and f:IsShown() then
+        visibleRows=visibleRows+1
+        if f.selected:IsShown() then selectedRows=selectedRows+1 end
+    end
+    if f.text=="Damage per second: +17.68" then rounded=true end
+end
+assert(visibleRows==5,"archive must show five larger item rows")
+assert(selectedRows==1,"first displayed record must highlight immediately")
+assert(rounded,"decimal item stats must be readable")
+assert(db.records[1].rolls[1].name=="Dragon-Soulseeker","viewing details reordered saved rolls")
+assert(ClickButton("All rarities"),"quick rarity filter missing")
+local rareRows=0
+for _,f in ipairs(frames) do
+    if f.record and f.itemName and f:IsShown() then
+        rareRows=rareRows+1
+        assert(f.record.quality>=3,"Rare+ filter leaked lower-quality records")
+    end
+end
+assert(rareRows==4 and #db.records==8,"quick filter changed archive data")
+assert(ClickButton("Rare+") and ClickButton("Epic+"),"quick filter could not return to all rarities")
+assert(#db.records==8,"filter cycle lost saved records")
+db.recipes={legacy={name="Learned Sword",recipeID=777}}
+for i,v in ipairs({
+    {"Plans: Copper Chain Vest",9,"Blacksmithing","Chillx-Ranger"},
+    {"Schematic: Mechanical Dragonling",9,"Engineering","Dragon-Soulseeker"},
+    {"Silk Cloth",7,"Cloth","Chillx-Ranger"},
+}) do
+    db.records[#db.records+1]={id=100+i,name=v[1],classID=v[2],subtype=v[3],winner=v[4],
+        quality=2,link="item:"..(900+i),icon="Interface\\Icons\\INV_Scroll_03",
+        time=1700000300-i,zone="Stranglethorn Vale",source="Loot message",status="Received"}
+end
+assert(ClickButton("Crafting"),"crafting navigation missing")
+local function CraftRowCount()
+    local count=0
+    for _,f in ipairs(frames) do if f.recipe and f:IsShown() then count=count+1 end end
+    return count
+end
+assert(CraftRowCount()==3,"learned recipes leaked into crafting drops")
+assert(ClickButton("Recipes / Plans") and CraftRowCount()==2,"recipe-drop filter failed")
+assert(ClickButton("Materials") and CraftRowCount()==1,"material-drop filter failed")
+assert(ClickButton("All drops") and CraftRowCount()==3,"all-drop view failed")
+local playerButton
+for _,f in ipairs(frames) do
+    if f.player and f.player.name=="Chillx-Ranger" and f.scripts.OnClick then playerButton=f;break end
+end
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+assert(CraftRowCount()==2,"player filter did not apply to crafting drops")
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+assert(CraftRowCount()==3,"player filter could not reset")
+local rings=0
+for _,f in ipairs(frames) do if f.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\f_item_ring" then rings=rings+1 end end
+assert(rings>=5,"gold circular item frames missing")
+assert(ClickButton("All Equipment"),"could not return to loot journal")
+-- The UI must use Core's canonical identity matcher for legacy chat spellings.
+local savedWinner=db.records[1].winner
+db.records[1].winner="legacy-spelling"
+addon.SamePlayer=function(a,b)
+    return (a=="legacy-spelling" and b=="Chillx-Ranger") or a==b
+end
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+local matchedLegacy=false
+for _,f in ipairs(frames) do
+    if f.itemName and f.record and f.record.id==1 and f:IsShown() then matchedLegacy=true end
+end
+assert(matchedLegacy,"player filter ignored canonical identity matching")
+db.records[1].winner=savedWinner
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+addon.SamePlayer=nil
+
+io.write("Header layering, row selection, decimal stats and rarity filter regressions passed\n")
+
+-- Export the widgets created by the real addon code for a layout preview.
+-- This is not a replacement UI or a generated fantasy mockup.
+if os.getenv("FLJ_SNAPSHOT")=="1" then
+    storage="MONSTER"
+    for _,f in ipairs(frames) do
+        if f.record and f.record.id==1 and f.itemName then f.scripts.OnClick(f);break end
+    end
+    local function Encode(v)
+        if v==nil then return "null" end
+        if type(v)=="boolean" or type(v)=="number" then return tostring(v) end
+        if type(v)=="string" then
+            return '"'..v:gsub('\\','\\\\'):gsub('"','\\"'):gsub('\n','\\n'):gsub('\r','\\r'):gsub('\t','\\t')..'"'
+        end
+        local parts={}
+        for _,value in ipairs(v) do parts[#parts+1]=Encode(value) end
+        return '['..table.concat(parts,',')..']'
+    end
+    local ids={}
+    for i,f in ipairs(frames) do ids[f]=i end
+    local function Snapshot(path)
+        local output={}
+        for i,f in ipairs(frames) do
+            local points={}
+            for _,point in ipairs(f.points or {}) do
+                local p={}
+                for j,v in ipairs(point) do p[j]=type(v)=="table" and ("@"..ids[v]) or v end
+                points[#points+1]=p
+            end
+            output[#output+1]=Encode({i,ids[f.parent] or 0,f.kind,f.shown,f.width or 0,f.height or 0,
+                points,f.full or false,f.color or {},f.vertex or {},f.alpha or 1,f.texture or "",
+                f.text or "",f.font or {},f.textColor or {},f.justify or "LEFT",f.layer or "",
+                f:GetFrameLevel(),f.coords or {},f.masked or false})
+        end
+        local file=assert(io.open(path,"w"))
+        file:write('{"root":'..ids[main]..',"widgets":['..table.concat(output,',')..']}')
+        file:close()
+    end
+    addon.UI.Refresh()
+    Snapshot("tools/journal-scene.json")
+    assert(ClickButton("Crafting"))
+    Snapshot("tools/crafting-scene.json")
+    assert(ClickButton("All Equipment"))
+    addon.SettingsUI.Show("rarity")
+    Snapshot("tools/settings-scene.json")
+end
+

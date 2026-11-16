@@ -1,5 +1,51 @@
 # Forever Loot Journal
 
+## Version 1.6.1 - Forever group-roll registration
+
+- Records the server's Need/Greed/Pass, numeric roll and winner chat messages when encounter-scoped loot history is unavailable.
+- Resolves current roster names consistently when chat uses spaces and the roster uses hyphens. Ambiguous short names and different explicit realms remain separate.
+- Merges a roll result, its later loot receipt and the game's history update into one entry; preserves observed rolls when a history update has no roll list.
+- Retries uncached item metadata and honors rarity registration. Player filters use the same identity matching as recording and party sync.
+- Fixes incoming profession-item sync payloads to accept the same supported classes as the sender and core.
+
+Install the full ZIP while WoW is closed and keep your WTF folder. Open with /flj. This update records future observed loot messages; a previously missed drop cannot be reconstructed from a screenshot.
+
+
+## Version 1.6.0 - gilded loot journal and profession drops
+
+- Larger circular item icons with custom gold rings, warm selection and hover effects, a subtle gold-lit header, and live loot/player/crafting-drop counters.
+- Removes the duplicate General settings page. Settings opens on Rarity Filter; Storage, Display and Profiles retain their controls.
+- Crafting shows recorded loot: recipes, plans, patterns, formulae, schematics, designs, reagents, trade goods and profession equipment. It includes item links, the recipient, location and recorded date, plus item-type, player and text filters.
+- Opening a profession window no longer imports learned recipes. Existing learned-recipe data is preserved but is not mixed into the drop view. Previously recorded recipe drops remain available.
+- New profession-item receipts use the existing rarity settings, saved-record limit, duplicate handling and optional party sync. Equipment and crafting views stay separate.
+
+**Install:** Close WoW and replace `Interface/AddOns/ForeverLootJournal` with the folder in the v1.6.0 ZIP. Keep `WTF` to retain your saved history. Open with `/flj`.
+
+**Validation:** Regression suites cover local profession drops, cross-zone material sharing, rarity settings, learned-recipe exclusion, player/type filters, navigation and data preservation. Previews are rendered from the addon widgets with sample loot; game icons/fonts are approximated.
+
+## Version 1.5.0 - option D charcoal and metal interface
+
+The settings window follows the bottom-right **D: Settings & Filters** reference: a compact 1100x560 window with charcoal materials, silver edging, restrained gold trim, a gear crest, a narrow navigation menu, eight rarity cards and five storage cards. The active PC tier has a gold border and check badge; EXTREME!! uses a purple border. All numbers, labels and checks are live Lua controls.
+
+The journal shares these materials and a compact header with an F crest. The castle banner is replaced. Opening Settings hides the journal panels; returning restores the journal size, active filters and item selection. Loot, rolls, players, crafting recipes and saved preferences continue using the existing database.
+
+**Install:** Close WoW and replace `Interface/AddOns/ForeverLootJournal` with the folder in the v1.5.0 ZIP. Keep the `WTF` folder. Enter `/flj` and click the gear icon to view Settings.
+
+**Validation:** The seven addon test suites include compact-window sizing, hidden journal panels, navigation, settings persistence, delete confirmation, item selection and non-destructive filtering. Source-rendered previews use fixture records and approximate the WoW client's fonts/icons. In-game rendering has not been verified by the author of this update.
+
+## Version 1.4.0 - visible fantasy header and clearer journal
+
+- Fixes the opaque child panel that covered the title, custom banner and gold frame. The background now uses root textures, preserving the intended draw order.
+- Fixes rarity checkmarks being drawn behind their own checkbox backgrounds.
+- Uses clean body text, navy panels throughout Loot and Crafting, better item-detail spacing, and six compact loot rows instead of four.
+- Adds visible paging buttons for loot and players, record ranges, account totals, and an **All rarities / Rare+ / Epic+** archive filter. This viewing filter never changes rarity registration or deletes records.
+- Correctly highlights the initial item and rounds decimal stats to two places. Viewing rolls sorts a copy and leaves the recorded order intact.
+- Removes the native edit-box artwork that conflicted with the custom search fields. Settings cards fit within their panels.
+
+**Install:** Close WoW, extract the ZIP into `_forever_/Interface/AddOns/`, and replace the existing `ForeverLootJournal` folder. Keep your `WTF` folder to retain loot, players, recipes and preferences. Open with `/flj`; use the gear button for Settings.
+
+**Validation:** Existing addon tests plus regressions for header/checkmark layering, six-row display, selection, decimal stats and non-destructive rarity filtering. Layout previews are exported from actual addon widget construction with sample records; built-in game icons and fonts are approximated. Final appearance must be checked inside WoW Forever.
+
 ## Version 1.3.0 – full D-style modern World of Warcraft redesign
 
 This release rebuilds the **actual in-game addon interface** around the selected **Design D** mockup, not a standalone image.
@@ -310,3 +356,4 @@ This repository contains the addon source. It is not yet field-tested inside the
 MINIMAP SHORTCUT
 ----------------
 Left-click the round chest icon to open or close the journal. Alt-drag moves it around the minimap and remembers its position. If it is lost, type /flj reseticon.
+

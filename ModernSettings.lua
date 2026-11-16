@@ -1,20 +1,21 @@
--- Forever Loot Journal v1.3.0
+-- Forever Loot Journal v1.5.0: option D settings.
 -- D-inspired modern WoW settings. Presentation only; reuses Core.lua
 -- saved-variable APIs, so all loot and prior settings are preserved.
 local addonName, FLJ = ...
+local Theme=FLJ.Theme
 local S = {}
 FLJ.SettingsUI = S
 
 local C = {
-    back={.020,.032,.056,1}, panel={.027,.045,.075,1},
-    well={.014,.024,.044,1}, button={.061,.086,.129,1},
-    border={.23,.32,.43,1}, gold={1,.78,.26,1},
+    back={.025,.028,.035,1}, panel={.040,.044,.054,1},
+    well={.020,.023,.030,1}, button={.065,.071,.084,1},
+    border={.28,.29,.32,1}, gold={1,.78,.26,1},
     pale={.88,.91,.96,1}, muted={.58,.67,.77,1},
 }
 local overlay,host
 local pages,navButtons={},{}
 local qualityButtons,storageButtons,displayButtons={},{},{}
-local page="general"
+local page="rarity"
 local pendingStorage
 local profileText={}
 local function Color(t) return t[1],t[2],t[3],t[4] or 1 end
@@ -48,11 +49,12 @@ local function Panel(parent,x,y,w,h,color,edge)
     f:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
     f.base=Paint(f,color or C.panel)
     Stroke(f,edge or C.border,1)
+    Theme.Paint(f,"d_panel","BORDER",8)
     return f
 end
 local function Text(parent,str,x,y,size,color,width)
     local t=parent:CreateFontString(nil,"OVERLAY","GameFontNormal")
-    t:SetFont("Fonts\\FRIZQT__.TTF",size or 13,"OUTLINE")
+    t:SetFont((size or 13)>=17 and "Fonts\\FRIZQT__.TTF" or "Fonts\\ARIALN.TTF",size or 13,"")
     t:SetTextColor(Color(color or C.pale))
     t:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
     if width then t:SetWidth(width); t:SetJustifyH("LEFT") end
@@ -67,6 +69,9 @@ local function Button(parent,x,y,w,h,text,callback)
     b:EnableMouse(true)
     b.base=Paint(b,C.button)
     Stroke(b,C.border,1)
+    b.chrome=Theme.Paint(b,"d_button","BORDER",7)
+    b.active=Theme.Paint(b,"d_active","ARTWORK",7)
+    b.active:SetShown(false)
     b.highlight=b:CreateTexture(nil,"ARTWORK")
     b.highlight:SetColorTexture(.83,.62,.19,.14)
     b.highlight:SetAllPoints(b)
@@ -107,75 +112,58 @@ local function SetDisplay(name,value)
 end
 
 local function TitleBlock(parent,heading,subtitle)
-    Text(parent,heading,22,20,20,C.gold,690)
-    Text(parent,subtitle,22,54,12,C.muted,690)
-    local goldLine=parent:CreateTexture(nil,"ARTWORK")
-    goldLine:SetColorTexture(.70,.47,.12,.65)
-    goldLine:SetPoint("TOPLEFT",parent,"TOPLEFT",22,-80)
-    goldLine:SetSize(720,1)
+    local title=Text(parent,heading,18,16,16,C.pale,800)
+    Text(parent,subtitle,18,41,11,C.muted,800)
+    return title
 end
-
 local function MakeRarities(parent,topLabel)
     if topLabel then
         TitleBlock(parent,"Rarity Registration (New Loot)",
-            "Choose which rarities should be saved for future drops.")
+            "Choose which rarities should be saved for new loot.")
     end
-    local area=Panel(parent,14,93,738,139,C.well,{.24,.34,.46,1})
     for i,opt in ipairs(FLJ.RarityOptions or {}) do
-        local rarityID=opt.id
-        local rarityName=opt.label
-        local color=opt.color
-        local b=Button(area,10+(i-1)*91,10,83,117,"",function()
-            if FLJ.SetRarityEnabled then
-                FLJ.SetRarityEnabled(rarityID,not FLJ.IsRarityEnabled(rarityID))
-                S.Refresh()
-            end
+        local id,name,color=opt.id,opt.label,opt.color
+        local b=Button(parent,18+(i-1)*100,68,90,91,"",function()
+            FLJ.SetRarityEnabled(id,not FLJ.IsRarityEnabled(id))
+            S.Refresh()
         end)
         b.rarityColor=color
-        local check=Panel(b,26,19,31,31,C.well,{.43,.51,.60,1})
-        check.base:SetColorTexture(.025,.04,.065,.9)
-        b.check=b:CreateTexture(nil,"OVERLAY")
-        b.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
-        b.check:SetSize(40,40)
+        Theme.Paint(b,"d_card","ARTWORK",10)
+        b.glow=Theme.Paint(b,"d_glow","ARTWORK",10)
+        b.glow:SetTint(color[1],color[2],color[3])
+        local check=Panel(b,30,14,30,30,C.well)
+        b.check=check:CreateTexture(nil,"OVERLAY")
+        b.check:SetTexture("Interface\\AddOns\\ForeverLootJournal\\Media\\f_check")
         b.check:SetPoint("CENTER",check,"CENTER",0,0)
+        b.check:SetSize(36,36)
         b.check:SetVertexColor(color[1],color[2],color[3])
-        b.label:SetPoint("TOPLEFT",b,"TOPLEFT",2,-72)
-        b.label:SetSize(79,18)
+        b.label:ClearAllPoints()
+        b.label:SetPoint("TOPLEFT",b,"TOPLEFT",3,-61)
+        b.label:SetSize(84,20)
         b.label:SetJustifyH("CENTER")
-        b.label:SetText(rarityName)
-        b.state=Text(b,"ON",34,96,10,C.muted,44)
-        b.state:SetJustifyH("CENTER")
-        b.state:ClearAllPoints()
-        b.state:SetPoint("BOTTOM",b,"BOTTOM",0,4)
+        b.label:SetText(name)
+        b.state=Text(b,"",0,0,1,C.muted,1)
         b:SetScript("OnEnter",function(self)
             self.highlight:Show()
             GameTooltip:SetOwner(self,"ANCHOR_TOP")
-            GameTooltip:AddLine(rarityName, color[1],color[2],color[3])
+            GameTooltip:AddLine(name,color[1],color[2],color[3])
             GameTooltip:AddLine("Toggle saving NEW loot of this quality",1,1,1)
             GameTooltip:AddLine("Previously saved items are never removed.",.7,.83,1)
             GameTooltip:Show()
         end)
-        b:SetScript("OnLeave",function(self)
-            self.highlight:Hide()
-            GameTooltip:Hide()
-        end)
-        if not qualityButtons[rarityID] then qualityButtons[rarityID]={} end
-        qualityButtons[rarityID][#qualityButtons[rarityID]+1]=b
+        b:SetScript("OnLeave",function(self) self.highlight:Hide();GameTooltip:Hide() end)
+        qualityButtons[id]=qualityButtons[id] or {}
+        qualityButtons[id][#qualityButtons[id]+1]=b
     end
 end
 local function UpdateRarities()
     for id,buttons in pairs(qualityButtons) do
-        local enabled=FLJ.IsRarityEnabled and FLJ.IsRarityEnabled(id)
+        local on=FLJ.IsRarityEnabled(id)
         for _,b in ipairs(buttons) do
             local c=b.rarityColor
-            b.base:SetColorTexture(enabled and .05+c[1]*.16 or .038,
-                enabled and .05+c[2]*.13 or .048,
-                enabled and .07+c[3]*.16 or .064,1)
-            b.check:SetShown(enabled)
-            b.label:SetTextColor(enabled and c[1] or .48,enabled and c[2] or .53,
-                enabled and c[3] or .60)
-            b.state:SetText(enabled and "ON" or "OFF")
-            b.state:SetTextColor(enabled and .39 or .88,enabled and .92 or .48,enabled and .56 or .45)
+            b.check:SetShown(on)
+            b.glow:SetShown(on)
+            b.label:SetTextColor(on and c[1] or .48,on and c[2] or .50,on and c[3] or .55)
         end
     end
 end
@@ -236,85 +224,73 @@ local function DrawMonitor(parent,color)
     foot:SetSize(22,2)
 end
 local function MakeStorage(parent)
-    TitleBlock(parent,"Save Limit (PC Performance)",
-        "Maximum number of loot records to keep on this account.")
-    local area=Panel(parent,13,91,741,168,C.well,{.23,.32,.43,1})
-    local colors={
-        POTATO={.43,.70,1},NORMAL={.43,.70,1},
-        STRONG={.43,.70,1}, MONSTER={1,.74,.22},EXTREME={.75,.42,1},
-    }
+    local title=TitleBlock(parent,"Save Limit (PC Performance)","Maximum number of items to save.")
+    title:SetTextColor(Color(C.gold))
+    local colors={POTATO={.64,.70,.80},NORMAL={.64,.70,.80},STRONG={.64,.70,.80},
+        MONSTER={1,.79,.24},EXTREME={.72,.35,1}}
     for i,key in ipairs(FLJ.StoragePresetOrder or {}) do
         local profile=key
-        local entry=FLJ.StoragePresets[profile]
-        local b=Button(area,10+(i-1)*146,10,137,146,"",function()
-            ChooseStorage(profile)
-        end)
-        b.profile=profile
-        b.profileColor=colors[profile]
-        DrawMonitor(b,colors[profile])
+        local entry=FLJ.StoragePresets[key]
+        local b=Button(parent,18+(i-1)*163,70,151,154,"",function() ChooseStorage(profile) end)
+        b.profile=key;b.profileColor=colors[key]
+        Theme.Paint(b,"d_card","ARTWORK",12)
+        b.glow=Theme.Paint(b,"d_glow","ARTWORK",12)
+        DrawMonitor(b,colors[key])
         b.label:ClearAllPoints()
-        b.label:SetPoint("TOPLEFT",b,"TOPLEFT",5,-70)
-        b.label:SetSize(127,27)
+        b.label:SetPoint("TOPLEFT",b,"TOPLEFT",6,-84)
+        b.label:SetSize(139,26)
         b.label:SetJustifyH("CENTER")
         b.label:SetText(entry.label)
-        b.limit=Text(b,Format(entry.limit),7,109,15,C.pale,122)
+        b.limit=Text(b,Format(entry.limit),6,116,17,C.pale,139)
         b.limit:SetJustifyH("CENTER")
-        b.selected=Text(b,"SELECTED",8,5,9,C.gold,117)
-        b.selected:SetJustifyH("RIGHT")
-        if not storageButtons[profile] then storageButtons[profile]={} end
-        storageButtons[profile][#storageButtons[profile]+1]=b
+        b.selected=b:CreateTexture(nil,"OVERLAY")
+        b.selected:SetTexture("Interface\\AddOns\\ForeverLootJournal\\Media\\d_selected")
+        b.selected:SetPoint("TOPRIGHT",b,"TOPRIGHT",-3,-3)
+        b.selected:SetSize(25,25)
+        storageButtons[key]=storageButtons[key] or {}
+        storageButtons[key][#storageButtons[key]+1]=b
     end
 end
 local function UpdateStorage()
-    local selected=StorageKey()
-    for key,buttons in pairs(storageButtons) do
-        local active=selected==key
+    local key=StorageKey()
+    for id,buttons in pairs(storageButtons) do
         for _,b in ipairs(buttons) do
-            local color=b.profileColor
-            b.base:SetColorTexture(active and .24 or .045,active and .17 or .073,
-                active and .045 or .13,1)
-            b.label:SetTextColor(active and 1 or .88,active and .82 or .90,active and .34 or .98)
-            b.limit:SetTextColor(active and 1 or color[1],active and .82 or color[2],
-                active and .32 or color[3])
-            b.selected:SetShown(active)
+            local selected=id==key
+            b.glow:SetShown(selected or id=="EXTREME")
+            if selected then b.glow:SetTint(1,.78,.19)
+            else b.glow:SetTint(.62,.25,.9,.7) end
+            b.selected:SetShown(selected)
+            b.label:SetTextColor(selected and 1 or .88,selected and .82 or .90,selected and .34 or .96)
+            b.limit:SetTextColor(selected and 1 or .88,selected and .82 or .90,selected and .34 or .96)
         end
     end
 end
-
 local function NewPage(key)
-    local f=Panel(overlay,293,10,766,633,C.panel,{.26,.36,.48,1})
+    local f=CreateFrame("Frame",nil,overlay)
+    f:SetPoint("TOPLEFT",overlay,"TOPLEFT",222,-8)
+    f:SetSize(840,450)
     pages[key]=f
     return f
 end
-
-local function BuildGeneral()
-    local p=NewPage("general")
-    local rarity=Panel(p,8,8,750,291,C.panel,{.34,.42,.51,1})
-    MakeRarities(rarity,true)
-    local storage=Panel(p,8,311,750,310,C.panel,{.34,.42,.51,1})
-    MakeStorage(storage)
-end
 local function BuildRarityPage()
     local p=NewPage("rarity")
-    local rarity=Panel(p,8,8,750,290,C.panel,{.34,.42,.51,1})
+    local rarity=Panel(p,0,0,840,181,C.panel)
     MakeRarities(rarity,true)
-    local info=Panel(p,8,310,750,310,C.panel)
-    Text(info,"How Rarity Registration Works",22,20,18,C.gold,670)
-    Text(info,"Changes affect only newly acquired equipment and recipe drops.",22,69,14,C.pale,700)
-    Text(info,"Items already saved in your journal are never hidden or deleted.",22,107,13,C.muted,700)
-    Text(info,"The game must know an item's rarity before applying your selection.",22,145,13,C.muted,700)
-    Text(info,"Learned crafting recipes are saved separately from equipment history.",22,184,13,C.muted,700)
+    local info=Panel(p,0,193,840,257,C.panel)
+    Text(info,"Rarity registration",18,18,16,C.gold,800)
+    Text(info,"Your choices apply to future drops. Existing loot stays in the archive.",18,62,13,C.pale,800)
+    Text(info,"Previously saved items are never removed.",18,101,13,C.muted,800)
+    Text(info,"Crafting shows recipes, plans, materials and profession items recorded as loot.",18,140,13,C.muted,800)
 end
 local function BuildStoragePage()
     local p=NewPage("storage")
-    local store=Panel(p,8,8,750,310,C.panel,{.34,.42,.51,1})
+    local store=Panel(p,0,0,840,257,C.panel)
     MakeStorage(store)
-    local info=Panel(p,8,331,750,290,C.panel)
-    Text(info,"About Your PC Profile",22,20,18,C.gold,700)
-    Text(info,"Increasing your limit preserves every existing item.",22,73,13,C.pale,700)
-    Text(info,"Lowering the limit requires confirmation when older entries would be deleted.",22,117,13,C.muted,700)
-    Text(info,"The oldest loot entries are removed first. Keep a backup of SavedVariables.",22,161,13,C.muted,700)
-    Text(info,"PC tiers are capacity preferences, not guaranteed performance ratings.",22,205,13,C.muted,700)
+    local info=Panel(p,0,269,840,181,C.panel)
+    Text(info,"Saved loot history",18,18,16,C.gold,800)
+    Text(info,"Increasing the limit keeps every saved item.",18,58,13,C.pale,800)
+    Text(info,"A lower limit asks for confirmation before removing the oldest entries.",18,96,13,C.muted,800)
+    Text(info,"Players, recipes and preferences remain saved account-wide.",18,134,13,C.muted,800)
 end
 local displayDefs={
     {id="classColors",label="Use class colors for player names",desc="Keep class identity visible in the party roster."},
@@ -326,10 +302,10 @@ local function BuildDisplayPage()
     TitleBlock(p,"Display","Choose how the journal presents players and items.")
     for i,option in ipairs(displayDefs) do
         local key=option.id
-        local card=Panel(p,18,111+(i-1)*139,730,124,C.well,{.25,.35,.46,1})
-        Text(card,option.label,20,17,16,C.pale,580)
-        Text(card,option.desc,20,49,11,C.muted,580)
-        local btn=Button(card,600,35,110,45,"",function()
+        local card=Panel(p,12,85+(i-1)*109,816,98,C.well,{.25,.35,.46,1})
+        Text(card,option.label,20,17,16,C.pale,600)
+        Text(card,option.desc,20,49,11,C.muted,600)
+        local btn=Button(card,680,25,110,45,"",function()
             SetDisplay(key,not GetDisplay(key))
         end)
         displayButtons[key]=btn
@@ -338,23 +314,24 @@ end
 local function BuildProfilesPage()
     local p=NewPage("profiles")
     TitleBlock(p,"Profiles & History","Overview of your account-wide journal and party data.")
-    profileText.players=Text(p,"Known players: --",24,121,17,C.pale,700)
-    profileText.loot=Text(p,"Saved loot: --",24,171,17,C.pale,700)
-    profileText.recipes=Text(p,"Learned recipes: --",24,221,17,C.pale,700)
-    profileText.sync=Text(p,"Party sync: --",24,271,17,C.pale,700)
-    profileText.limit=Text(p,"Storage profile: --",24,321,17,C.pale,700)
-    Button(p,24,416,300,52,"Refresh Current Party",function()
+    profileText.players=Text(p,"Known players: --",24,88,17,C.pale,700)
+    profileText.loot=Text(p,"Saved loot: --",24,132,17,C.pale,700)
+    profileText.recipes=Text(p,"Crafting drops: --",24,176,17,C.pale,700)
+    profileText.sync=Text(p,"Party sync: --",24,220,17,C.pale,700)
+    profileText.limit=Text(p,"Storage profile: --",24,264,17,C.pale,700)
+    Button(p,24,350,300,52,"Refresh Current Party",function()
         if FLJ.RegisterRoster then FLJ.RegisterRoster() end
         if FLJ.UI and FLJ.UI.Refresh then FLJ.UI.Refresh() end
         S.Refresh()
     end)
-    Button(p,340,416,300,52,"Return to Loot Journal",function() S.Hide() end)
+    Button(p,350,350,300,52,"Return to Loot Journal",function() S.Hide() end)
 end
 
 local function RefreshPages()
     for key,p in pairs(pages) do p:SetShown(key==page) end
     for key,b in pairs(navButtons) do
         local selected=key==page
+        b.active:SetShown(selected)
         b.base:SetColorTexture(selected and .40 or .053,
             selected and .25 or .079,selected and .045 or .129,1)
         b.label:SetTextColor(selected and 1 or .84,selected and .84 or .88,
@@ -385,14 +362,14 @@ function S.Refresh()
         local syncing=db and db.ui and db.ui.syncEnabled~=false
         profileText.players:SetText("Known players: "..Format(countPlayers))
         profileText.loot:SetText("Saved loot records: "..Format(records))
-        profileText.recipes:SetText("Learned crafting recipes: "..Format(recipes))
+        profileText.recipes:SetText("Crafting drops: "..Format(recipes))
         profileText.sync:SetText("Party synchronization: "..(syncing and "Enabled" or "Disabled"))
         profileText.limit:SetText("Storage profile: "..label.." ("..Format(limit)..")")
     end
 end
 function S.Show(nextPage)
     if not overlay then return end
-    page=nextPage or "general"
+    page=pages[nextPage] and nextPage or "rarity"
     RefreshPages()
     overlay:Show()
     if FLJ.UI and FLJ.UI.SetHeaderMode then FLJ.UI.SetHeaderMode("settings") end
@@ -404,46 +381,36 @@ function S.Hide()
 end
 function S.Toggle()
     if not overlay then return end
-    if overlay:IsShown() then S.Hide() else S.Show("general") end
+    if overlay:IsShown() then S.Hide() else S.Show("rarity") end
 end
 function S.IsShown() return overlay and overlay:IsShown() or false end
 
 function S.Build(window)
     if overlay or not window then return end
     host=window
-    overlay=Panel(window,13,127,1074,660,C.back,{.64,.45,.17,1})
+    overlay=Panel(window,13,76,1074,470,C.back)
     overlay:SetFrameLevel(window:GetFrameLevel()+48)
-    local left=Panel(overlay,11,10,271,637,C.well,{.27,.37,.48,1})
-    Text(left,"SETTINGS",18,15,18,C.gold,230)
-    Text(left,"Journal preferences",18,42,11,C.muted,230)
-    local nav={
-        {"general","General","G"},
-        {"rarity","Rarity Filter","R"},
-        {"storage","Storage","S"},
-        {"display","Display","D"},
-        {"profiles","Profiles","P"},
-    }
+    overlay:EnableMouse(true)
+    local left=Panel(overlay,8,8,202,450,C.well)
+    local nav={{"rarity","Rarity Filter"},{"storage","Storage"},{"display","Display"},{"profiles","Profiles"}}
+    local icons={general="d_crest",rarity="d_crest",storage="d_monitor",display="d_display",profiles="d_crest"}
     for i,item in ipairs(nav) do
         local id=item[1]
-        local b=Button(left,12,76+(i-1)*76,246,62,item[2],function()
-            ChoosePage(id)
-        end)
+        local b=Button(left,8,10+(i-1)*52,186,43,item[2],function() ChoosePage(id) end)
         b.label:ClearAllPoints()
-        b.label:SetPoint("LEFT",b,"LEFT",53,0)
-        b.label:SetSize(172,40)
+        b.label:SetPoint("LEFT",b,"LEFT",47,0)
+        b.label:SetSize(132,32)
         b.label:SetJustifyH("LEFT")
-        b.label:SetFont("Fonts\\FRIZQT__.TTF",15,"OUTLINE")
-        local emblem=Text(b,item[3],17,18,18,C.gold,28)
+        b.label:SetFont("Fonts\\ARIALN.TTF",14,"")
+        local icon=b:CreateTexture(nil,"OVERLAY")
+        icon:SetTexture("Interface\\AddOns\\ForeverLootJournal\\Media\\"..icons[id])
+        icon:SetPoint("LEFT",b,"LEFT",11,0)
+        icon:SetSize(27,27)
         navButtons[id]=b
     end
-    local bottom=Text(left,"v1.3.0  |  Settings save automatically",15,589,10,C.muted,245)
-    Button(left,13,537,245,41,"Back to Journal",function() S.Hide() end)
-    BuildGeneral()
-    BuildRarityPage()
-    BuildStoragePage()
-    BuildDisplayPage()
-    BuildProfilesPage()
-    overlay:Hide()
-    RefreshPages()
-    S.Refresh()
+    Button(left,8,377,186,35,"Back to Journal",function() S.Hide() end)
+    Text(left,"v1.6.1  |  Saved automatically",12,426,10,C.muted,182)
+    BuildRarityPage();BuildStoragePage();BuildDisplayPage();BuildProfilesPage()
+    overlay:Hide();RefreshPages();S.Refresh()
 end
+-- END SETTINGS

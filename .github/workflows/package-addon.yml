@@ -6,6 +6,7 @@ on:
     paths:
       - 'Core.lua'
       - 'UI.lua'
+      - 'Theme.lua'
       - 'Crafting.lua'
       - 'ModernSettings.lua'
       - 'Minimap.lua'
@@ -41,6 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           luac5.1 -p Core.lua
+          luac5.1 -p Theme.lua
           luac5.1 -p UI.lua
           luac5.1 -p Minimap.lua
           luac5.1 -p Sync.lua
@@ -55,7 +57,7 @@ jobs:
           lua5.1 tools/test_social.lua
           lua5.1 tools/test_modern_ui.lua
           mkdir -p dist/ForeverLootJournal
-          cp Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua ForeverLootJournal.toc dist/ForeverLootJournal/
+          cp Core.lua Theme.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua ForeverLootJournal.toc dist/ForeverLootJournal/
           cp -R Media dist/ForeverLootJournal/
           cp README.md dist/ForeverLootJournal/
           (
@@ -87,3 +89,4 @@ jobs:
               --latest
           fi
           echo "Latest addon: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/ForeverLootJournal.zip"
+

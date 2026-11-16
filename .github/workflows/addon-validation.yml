@@ -7,6 +7,7 @@ on:
       - 'Media/**'
       - 'tools/test_minimap.lua'
       - 'tools/test_sync.lua'
+      - 'tools/test_roll_chat.lua'
       - 'tools/test_storage.lua'
       - 'tools/test_crafting.lua'
       - 'tools/test_rarity.lua'
@@ -35,7 +36,7 @@ jobs:
       - name: Parse every addon Lua file
         run: |
           set -eu
-          for file in Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua; do
+          for file in Core.lua Theme.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua; do
             echo "Checking $file"
             luac5.1 -p "$file"
           done
@@ -43,6 +44,8 @@ jobs:
         run: lua5.1 tools/test_minimap.lua
       - name: Test cross-zone party loot synchronization
         run: lua5.1 tools/test_sync.lua
+      - name: Test Forever chat rolls and player identity
+        run: lua5.1 tools/test_roll_chat.lua
       - name: Test saved-loot storage presets
         run: lua5.1 tools/test_storage.lua
       - name: Test crafting recipe scanner
@@ -92,9 +95,18 @@ jobs:
           assert 'MakeStorage(store)' in settings
           assert 'FLJ_MODERN_STORAGE_CONFIRM' in settings
           assert 'SelectGearFilter("crafting")' in ui and 'MakeCraftingPane(frame)' in ui
-          assert 'recipeID="loot-"' in ui and 'tonumber(r.classID)==9' in ui
+          craft = Path('Crafting.lua').read_text(encoding='utf-8')
+          assert 'recipeID="loot-"' in craft and 'Craft.GetDrops' in craft
+          assert 'GetAllRecipeIDs' not in craft and 'BuildGeneral' not in settings
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
-          assert 'modern_header' in ui and 'FLJ.SettingsUI.Build(frame)' in ui
+          assert 'f_header' in ui and 'FLJ.SettingsUI.Build(frame)' in ui
+          for name in ['f_item_ring','f_icon_well','f_circle_mask','f_check','f_row_selected','f_row_hover','f_header']:
+              data = Path('Media',name+'.tga').read_bytes()
+              assert data[2] == 2 and data[16] == 32, f'Invalid front-page artwork: {name}'
+          for name in ['d_panel','d_window','d_button','d_active','d_card','d_glow','d_crest','d_journal_crest','d_selected','d_monitor','d_display']:
+              data = Path('Media',name+'.tga').read_bytes()
+              assert data[2] == 2 and data[16] == 32, f'Invalid option D artwork: {name}'
+          assert 'Theme.lua' in toc
           assert Path('ModernSettings.lua').exists() and Path('tools/test_modern_ui.lua').exists()
           assert Path('Media/modern_header.tga').exists()
           assert 'r:RegisterForClicks("LeftButtonUp","RightButtonUp")' in ui
@@ -103,4 +115,19 @@ jobs:
           assert 'SelectGearFilter("armor")' in ui and 'SelectGearFilter("weapons")' in ui
           assert 'frame:RegisterForDrag("LeftButton")' not in ui, 'Journal must be draggable only from title bar'
           print('Manifest, artwork and filter checks passed')
+          PY
+
+
+      - name: Verify installable addon ZIP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          toc=Path('ForeverLootJournal.toc').read_text()
+          version=next(line.split(': ',1)[1] for line in toc.splitlines() if line.startswith('## Version: '))
+          archive=zipfile.ZipFile('downloads/ForeverLootJournal_v'+version+'.zip')
+          assert archive.testzip() is None, 'ZIP CRC or compressed bytes failed'
+          for name in ['Core.lua','Theme.lua','UI.lua','Minimap.lua','Sync.lua','Crafting.lua','Social.lua','ModernSettings.lua','ForeverLootJournal.toc','README.md']:
+              assert archive.read('ForeverLootJournal/'+name)==Path(name).read_bytes(), 'Stale packaged source: '+name
+          print('Installable ZIP matches the tested source')
           PY
