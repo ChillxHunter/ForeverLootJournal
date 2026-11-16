@@ -108,6 +108,11 @@ local function RegistrationAllowed(quality)
 end
 
 local CLASS_ARMOR, CLASS_WEAPON, CLASS_RECIPE = 4, 2, 9
+-- ItemClass values from the game API. Receipts are the source of this archive.
+function FLJ.IsCraftingItem(item)
+    local id=tonumber(type(item)=="table" and item.classID or item)
+    return id==CLASS_RECIPE or id==7 or id==5 or id==19
+end
 local function Plain(v)
     if issecretvalue and issecretvalue(v) then return nil end
     return v
@@ -146,8 +151,7 @@ local function ItemInfo(link)
 end
 local function Gear(link)
     local item=ItemInfo(link)
-    if item.classID == CLASS_RECIPE then
-        -- Crafting plans and formulae are item class 9 and are not equippable.
+    if FLJ.IsCraftingItem(item) then
         return item
     end
     if item.classID == CLASS_ARMOR or item.classID == CLASS_WEAPON then
@@ -327,7 +331,7 @@ end
 function FLJ.ReceiveSharedLoot(sender, serial, itemString, statedClass, remoteZone)
     if not DB or type(sender)~="string" or type(itemString)~="string" then return false end
     local classID=tonumber(statedClass)
-    if classID~=CLASS_ARMOR and classID~=CLASS_WEAPON and classID~=CLASS_RECIPE then return false end
+    if classID~=CLASS_ARMOR and classID~=CLASS_WEAPON and not FLJ.IsCraftingItem(classID) then return false end
     local remoteID=tonumber(itemString:match("^item:(%d+)"))
     if not remoteID then return false end
     local who=Resolve(sender)
@@ -705,3 +709,4 @@ SlashCmdList.FOREVERLOOTJOURNAL=function(msg)
         print("|cffffd76aForever Loot Journal|r: unknown command. Use /flj help")
     end
 end
+

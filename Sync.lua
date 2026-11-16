@@ -95,7 +95,7 @@ function FLJ.SendSelfLoot(rec)
     if not (ui and db and ui.syncEnabled and Channel()) or type(rec)~="table" then return false end
     if rec.syncSent then return false end
     local cls=tonumber(rec.classID)
-    if cls~=2 and cls~=4 and cls~=9 then return false end
+    if cls~=2 and cls~=4 and not (FLJ.IsCraftingItem and FLJ.IsCraftingItem(cls)) then return false end
     local link=rec.link
     if type(link)~="string" then
         if not rec.itemID then return false end
@@ -214,3 +214,4 @@ eventFrame:SetScript("OnEvent",function(_,event,...)
         HandleMessage(...)
     end
 end)
+

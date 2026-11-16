@@ -21,6 +21,10 @@ local function MakeWidget(parent,kind)
     function f:SetColorTexture(...) self.color={...} end
     function f:SetVertexColor(...) self.vertex={...} end
     function f:SetTexture(t) self.texture=t end
+    function f:AddMaskTexture(mask) self.masked=true end
+    function f:CreateMaskTexture(_,layer)
+        local t=MakeWidget(self,"MaskTexture");t.layer=layer;return t
+    end
     function f:SetTexCoord(...) self.coords={...} end
     function f:SetAlpha(a) self.alpha=a end
     function f:SetScale(s) self.scale=s end
@@ -134,6 +138,7 @@ end
 local logs={}
 print=function(s)logs[#logs+1]=s end
 assert(loadfile("Theme.lua"))("ForeverLootJournal",addon)
+assert(loadfile("Crafting.lua"))("ForeverLootJournal",addon)
 assert(loadfile("UI.lua"))("ForeverLootJournal",addon)
 assert(loadfile("ModernSettings.lua"))("ForeverLootJournal",addon)
 assert(addon.Toggle,"journal toggle missing")
@@ -143,12 +148,13 @@ assert(main and main:IsShown(),"journal not shown")
 assert(addon.SettingsUI and addon.SettingsUI.Build,"settings module missing")
 local headerTex=false
 for _,frame in ipairs(frames) do
-    if frame.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\d_header" then
+    if frame.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\f_header" then
         headerTex=true
     end
 end
 assert(headerTex,"modern custom header artwork not applied")
-addon.SettingsUI.Show("general")
+addon.SettingsUI.Show()
+for _,f in ipairs(frames) do assert(not(f.label and f.label:GetText()=="General"),"redundant General page remains") end
 assert(addon.SettingsUI.IsShown(),"general settings page failed to open")
 assert(main:GetHeight()==560,"option D settings must use the compact window")
 for _,f in ipairs(frames) do
@@ -262,7 +268,7 @@ for _,f in ipairs(frames) do
     end
     if f.text=="Damage per second: +17.68" then rounded=true end
 end
-assert(visibleRows==6,"archive must show six rows")
+assert(visibleRows==5,"archive must show five larger item rows")
 assert(selectedRows==1,"first displayed record must highlight immediately")
 assert(rounded,"decimal item stats must be readable")
 assert(db.records[1].rolls[1].name=="Dragon-Soulseeker","viewing details reordered saved rolls")
@@ -277,6 +283,38 @@ end
 assert(rareRows==4 and #db.records==8,"quick filter changed archive data")
 assert(ClickButton("Rare+") and ClickButton("Epic+"),"quick filter could not return to all rarities")
 assert(#db.records==8,"filter cycle lost saved records")
+db.recipes={legacy={name="Learned Sword",recipeID=777}}
+for i,v in ipairs({
+    {"Plans: Copper Chain Vest",9,"Blacksmithing","Chillx-Ranger"},
+    {"Schematic: Mechanical Dragonling",9,"Engineering","Dragon-Soulseeker"},
+    {"Silk Cloth",7,"Cloth","Chillx-Ranger"},
+}) do
+    db.records[#db.records+1]={id=100+i,name=v[1],classID=v[2],subtype=v[3],winner=v[4],
+        quality=2,link="item:"..(900+i),icon="Interface\\Icons\\INV_Scroll_03",
+        time=1700000300-i,zone="Stranglethorn Vale",source="Loot message",status="Received"}
+end
+assert(ClickButton("Crafting"),"crafting navigation missing")
+local function CraftRowCount()
+    local count=0
+    for _,f in ipairs(frames) do if f.recipe and f:IsShown() then count=count+1 end end
+    return count
+end
+assert(CraftRowCount()==3,"learned recipes leaked into crafting drops")
+assert(ClickButton("Recipes / Plans") and CraftRowCount()==2,"recipe-drop filter failed")
+assert(ClickButton("Materials") and CraftRowCount()==1,"material-drop filter failed")
+assert(ClickButton("All drops") and CraftRowCount()==3,"all-drop view failed")
+local playerButton
+for _,f in ipairs(frames) do
+    if f.player and f.player.name=="Chillx-Ranger" and f.scripts.OnClick then playerButton=f;break end
+end
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+assert(CraftRowCount()==2,"player filter did not apply to crafting drops")
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+assert(CraftRowCount()==3,"player filter could not reset")
+local rings=0
+for _,f in ipairs(frames) do if f.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\f_item_ring" then rings=rings+1 end end
+assert(rings>=5,"gold circular item frames missing")
+assert(ClickButton("All Equipment"),"could not return to loot journal")
 io.write("Header layering, row selection, decimal stats and rarity filter regressions passed\n")
 
 -- Export the widgets created by the real addon code for a layout preview.
@@ -310,7 +348,7 @@ if os.getenv("FLJ_SNAPSHOT")=="1" then
             output[#output+1]=Encode({i,ids[f.parent] or 0,f.kind,f.shown,f.width or 0,f.height or 0,
                 points,f.full or false,f.color or {},f.vertex or {},f.alpha or 1,f.texture or "",
                 f.text or "",f.font or {},f.textColor or {},f.justify or "LEFT",f.layer or "",
-                f:GetFrameLevel(),f.coords or {}})
+                f:GetFrameLevel(),f.coords or {},f.masked or false})
         end
         local file=assert(io.open(path,"w"))
         file:write('{"root":'..ids[main]..',"widgets":['..table.concat(output,',')..']}')
@@ -318,7 +356,10 @@ if os.getenv("FLJ_SNAPSHOT")=="1" then
     end
     addon.UI.Refresh()
     Snapshot("tools/journal-scene.json")
-    addon.SettingsUI.Show("general")
+    assert(ClickButton("Crafting"))
+    Snapshot("tools/crafting-scene.json")
+    assert(ClickButton("All Equipment"))
+    addon.SettingsUI.Show("rarity")
     Snapshot("tools/settings-scene.json")
 end
 

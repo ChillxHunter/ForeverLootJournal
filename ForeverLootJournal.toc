@@ -2,7 +2,7 @@
 ## Title: |cffffd76aForever Loot Journal|r
 ## Notes: Party/raid loot and crafting recipes with option D charcoal-metal styling, compact settings, rarity registration, PC storage presets, player actions and optional party sync. Open with /flj.
 ## Author: Custom standalone addon
-## Version: 1.5.0
+## Version: 1.6.0
 ## SavedVariables: ForeverLootJournalDB
 ## IconTexture: Interface\Icons\INV_Chest_Chain_05
 Core.lua

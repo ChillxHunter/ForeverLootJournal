@@ -1,5 +1,17 @@
 # Forever Loot Journal
 
+## Version 1.6.0 - gilded loot journal and profession drops
+
+- Larger circular item icons with custom gold rings, warm selection and hover effects, a subtle gold-lit header, and live loot/player/crafting-drop counters.
+- Removes the duplicate General settings page. Settings opens on Rarity Filter; Storage, Display and Profiles retain their controls.
+- Crafting shows recorded loot: recipes, plans, patterns, formulae, schematics, designs, reagents, trade goods and profession equipment. It includes item links, the recipient, location and recorded date, plus item-type, player and text filters.
+- Opening a profession window no longer imports learned recipes. Existing learned-recipe data is preserved but is not mixed into the drop view. Previously recorded recipe drops remain available.
+- New profession-item receipts use the existing rarity settings, saved-record limit, duplicate handling and optional party sync. Equipment and crafting views stay separate.
+
+**Install:** Close WoW and replace `Interface/AddOns/ForeverLootJournal` with the folder in the v1.6.0 ZIP. Keep `WTF` to retain your saved history. Open with `/flj`.
+
+**Validation:** Regression suites cover local profession drops, cross-zone material sharing, rarity settings, learned-recipe exclusion, player/type filters, navigation and data preservation. Previews are rendered from the addon widgets with sample loot; game icons/fonts are approximated.
+
 ## Version 1.5.0 - option D charcoal and metal interface
 
 The settings window follows the bottom-right **D: Settings & Filters** reference: a compact 1100x560 window with charcoal materials, silver edging, restrained gold trim, a gear crest, a narrow navigation menu, eight rarity cards and five storage cards. The active PC tier has a gold border and check badge; EXTREME!! uses a purple border. All numbers, labels and checks are live Lua controls.

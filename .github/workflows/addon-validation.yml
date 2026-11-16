@@ -92,9 +92,14 @@ jobs:
           assert 'MakeStorage(store)' in settings
           assert 'FLJ_MODERN_STORAGE_CONFIRM' in settings
           assert 'SelectGearFilter("crafting")' in ui and 'MakeCraftingPane(frame)' in ui
-          assert 'recipeID="loot-"' in ui and 'tonumber(r.classID)==9' in ui
+          craft = Path('Crafting.lua').read_text(encoding='utf-8')
+          assert 'recipeID="loot-"' in craft and 'Craft.GetDrops' in craft
+          assert 'GetAllRecipeIDs' not in craft and 'BuildGeneral' not in settings
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
-          assert 'd_header' in ui and 'FLJ.SettingsUI.Build(frame)' in ui
+          assert 'f_header' in ui and 'FLJ.SettingsUI.Build(frame)' in ui
+          for name in ['f_item_ring','f_icon_well','f_circle_mask','f_check','f_row_selected','f_row_hover','f_header']:
+              data = Path('Media',name+'.tga').read_bytes()
+              assert data[2] == 2 and data[16] == 32, f'Invalid front-page artwork: {name}'
           for name in ['d_panel','d_window','d_button','d_active','d_card','d_glow','d_crest','d_journal_crest','d_selected','d_monitor','d_display']:
               data = Path('Media',name+'.tga').read_bytes()
               assert data[2] == 2 and data[16] == 32, f'Invalid option D artwork: {name}'

@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 
 BASE=Path(__file__).resolve().parents[1]
-FIELDS='id parent kind shown width height points full color vertex alpha texture text font textColor justify layer level coords'.split()
+FIELDS='id parent kind shown width height points full color vertex alpha texture text font textColor justify layer level coords masked'.split()
 FACTORS={'TOPLEFT':(0,0),'TOP':(.5,0),'TOPRIGHT':(1,0),'LEFT':(0,.5),'CENTER':(.5,.5),'RIGHT':(1,.5),'BOTTOMLEFT':(0,1),'BOTTOM':(.5,1),'BOTTOMRIGHT':(1,1)}
 
 def render(source,target):
@@ -107,6 +107,10 @@ def render(source,target):
             if n['vertex']:
                 tile=ImageChops.multiply(tile,Image.new('RGBA',tile.size,tint(n['vertex'])))
             if n['alpha']<1: tile.putalpha(tile.getchannel('A').point(lambda a:round(a*n['alpha'])))
+            if n['masked']:
+                circle=Image.new('L',tile.size)
+                ImageDraw.Draw(circle).ellipse((0,0,tile.width-1,tile.height-1),fill=255)
+                tile.putalpha(ImageChops.multiply(tile.getchannel('A'),circle))
             canvas.alpha_composite(tile,(box[0],box[1]))
         else:
             text=n['text']

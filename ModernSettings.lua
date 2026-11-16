@@ -15,7 +15,7 @@ local C = {
 local overlay,host
 local pages,navButtons={},{}
 local qualityButtons,storageButtons,displayButtons={},{},{}
-local page="general"
+local page="rarity"
 local pendingStorage
 local profileText={}
 local function Color(t) return t[1],t[2],t[3],t[4] or 1 end
@@ -133,7 +133,7 @@ local function MakeRarities(parent,topLabel)
         b.glow:SetTint(color[1],color[2],color[3])
         local check=Panel(b,30,14,30,30,C.well)
         b.check=check:CreateTexture(nil,"OVERLAY")
-        b.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        b.check:SetTexture("Interface\\AddOns\\ForeverLootJournal\\Media\\f_check")
         b.check:SetPoint("CENTER",check,"CENTER",0,0)
         b.check:SetSize(36,36)
         b.check:SetVertexColor(color[1],color[2],color[3])
@@ -272,13 +272,6 @@ local function NewPage(key)
     pages[key]=f
     return f
 end
-local function BuildGeneral()
-    local p=NewPage("general")
-    local rarity=Panel(p,0,0,840,181,C.panel)
-    MakeRarities(rarity,true)
-    local store=Panel(p,0,193,840,257,C.panel)
-    MakeStorage(store)
-end
 local function BuildRarityPage()
     local p=NewPage("rarity")
     local rarity=Panel(p,0,0,840,181,C.panel)
@@ -287,7 +280,7 @@ local function BuildRarityPage()
     Text(info,"Rarity registration",18,18,16,C.gold,800)
     Text(info,"Your choices apply to future drops. Existing loot stays in the archive.",18,62,13,C.pale,800)
     Text(info,"Previously saved items are never removed.",18,101,13,C.muted,800)
-    Text(info,"Learned crafting recipes are stored separately from loot history.",18,140,13,C.muted,800)
+    Text(info,"Crafting shows recipes, plans, materials and profession items recorded as loot.",18,140,13,C.muted,800)
 end
 local function BuildStoragePage()
     local p=NewPage("storage")
@@ -323,7 +316,7 @@ local function BuildProfilesPage()
     TitleBlock(p,"Profiles & History","Overview of your account-wide journal and party data.")
     profileText.players=Text(p,"Known players: --",24,88,17,C.pale,700)
     profileText.loot=Text(p,"Saved loot: --",24,132,17,C.pale,700)
-    profileText.recipes=Text(p,"Learned recipes: --",24,176,17,C.pale,700)
+    profileText.recipes=Text(p,"Crafting drops: --",24,176,17,C.pale,700)
     profileText.sync=Text(p,"Party sync: --",24,220,17,C.pale,700)
     profileText.limit=Text(p,"Storage profile: --",24,264,17,C.pale,700)
     Button(p,24,350,300,52,"Refresh Current Party",function()
@@ -369,14 +362,14 @@ function S.Refresh()
         local syncing=db and db.ui and db.ui.syncEnabled~=false
         profileText.players:SetText("Known players: "..Format(countPlayers))
         profileText.loot:SetText("Saved loot records: "..Format(records))
-        profileText.recipes:SetText("Learned crafting recipes: "..Format(recipes))
+        profileText.recipes:SetText("Crafting drops: "..Format(recipes))
         profileText.sync:SetText("Party synchronization: "..(syncing and "Enabled" or "Disabled"))
         profileText.limit:SetText("Storage profile: "..label.." ("..Format(limit)..")")
     end
 end
 function S.Show(nextPage)
     if not overlay then return end
-    page=nextPage or "general"
+    page=pages[nextPage] and nextPage or "rarity"
     RefreshPages()
     overlay:Show()
     if FLJ.UI and FLJ.UI.SetHeaderMode then FLJ.UI.SetHeaderMode("settings") end
@@ -388,7 +381,7 @@ function S.Hide()
 end
 function S.Toggle()
     if not overlay then return end
-    if overlay:IsShown() then S.Hide() else S.Show("general") end
+    if overlay:IsShown() then S.Hide() else S.Show("rarity") end
 end
 function S.IsShown() return overlay and overlay:IsShown() or false end
 
@@ -399,7 +392,7 @@ function S.Build(window)
     overlay:SetFrameLevel(window:GetFrameLevel()+48)
     overlay:EnableMouse(true)
     local left=Panel(overlay,8,8,202,450,C.well)
-    local nav={{"general","General"},{"rarity","Rarity Filter"},{"storage","Storage"},{"display","Display"},{"profiles","Profiles"}}
+    local nav={{"rarity","Rarity Filter"},{"storage","Storage"},{"display","Display"},{"profiles","Profiles"}}
     local icons={general="d_crest",rarity="d_crest",storage="d_monitor",display="d_display",profiles="d_crest"}
     for i,item in ipairs(nav) do
         local id=item[1]
@@ -416,8 +409,8 @@ function S.Build(window)
         navButtons[id]=b
     end
     Button(left,8,377,186,35,"Back to Journal",function() S.Hide() end)
-    Text(left,"v1.5.0  |  Saved automatically",12,426,10,C.muted,182)
-    BuildGeneral();BuildRarityPage();BuildStoragePage();BuildDisplayPage();BuildProfilesPage()
+    Text(left,"v1.6.0  |  Saved automatically",12,426,10,C.muted,182)
+    BuildRarityPage();BuildStoragePage();BuildDisplayPage();BuildProfilesPage()
     overlay:Hide();RefreshPages();S.Refresh()
 end
 -- END SETTINGS
