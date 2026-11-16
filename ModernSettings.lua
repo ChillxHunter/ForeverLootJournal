@@ -123,6 +123,7 @@ local function MakeRarities(parent,topLabel)
     local area=Panel(parent,14,93,738,139,C.well,{.24,.34,.46,1})
     for i,opt in ipairs(FLJ.RarityOptions or {}) do
         local rarityID=opt.id
+        local rarityName=opt.label
         local color=opt.color
         local b=Button(area,10+(i-1)*91,10,83,117,"",function()
             if FLJ.SetRarityEnabled then
@@ -141,7 +142,7 @@ local function MakeRarities(parent,topLabel)
         b.label:SetPoint("TOPLEFT",b,"TOPLEFT",2,-72)
         b.label:SetSize(79,18)
         b.label:SetJustifyH("CENTER")
-        b.label:SetText(opt.label)
+        b.label:SetText(rarityName)
         b.state=Text(b,"ON",34,96,10,C.muted,44)
         b.state:SetJustifyH("CENTER")
         b.state:ClearAllPoints()
@@ -149,7 +150,7 @@ local function MakeRarities(parent,topLabel)
         b:SetScript("OnEnter",function(self)
             self.highlight:Show()
             GameTooltip:SetOwner(self,"ANCHOR_TOP")
-            GameTooltip:AddLine(opt.label, color[1],color[2],color[3])
+            GameTooltip:AddLine(rarityName, color[1],color[2],color[3])
             GameTooltip:AddLine("Toggle saving NEW loot of this quality",1,1,1)
             GameTooltip:AddLine("Previously saved items are never removed.",.7,.83,1)
             GameTooltip:Show()
@@ -158,21 +159,24 @@ local function MakeRarities(parent,topLabel)
             self.highlight:Hide()
             GameTooltip:Hide()
         end)
-        qualityButtons[rarityID]=b
+        if not qualityButtons[rarityID] then qualityButtons[rarityID]={} end
+        qualityButtons[rarityID][#qualityButtons[rarityID]+1]=b
     end
 end
 local function UpdateRarities()
-    for id,b in pairs(qualityButtons) do
+    for id,buttons in pairs(qualityButtons) do
         local enabled=FLJ.IsRarityEnabled and FLJ.IsRarityEnabled(id)
-        local c=b.rarityColor
-        b.base:SetColorTexture(enabled and .05+c[1]*.16 or .038,
-            enabled and .05+c[2]*.13 or .048,
-            enabled and .07+c[3]*.16 or .064,1)
-        b.check:SetShown(enabled)
-        b.label:SetTextColor(enabled and c[1] or .48,enabled and c[2] or .53,
-            enabled and c[3] or .60)
-        b.state:SetText(enabled and "ON" or "OFF")
-        b.state:SetTextColor(enabled and .39 or .88,enabled and .92 or .48,enabled and .56 or .45)
+        for _,b in ipairs(buttons) do
+            local c=b.rarityColor
+            b.base:SetColorTexture(enabled and .05+c[1]*.16 or .038,
+                enabled and .05+c[2]*.13 or .048,
+                enabled and .07+c[3]*.16 or .064,1)
+            b.check:SetShown(enabled)
+            b.label:SetTextColor(enabled and c[1] or .48,enabled and c[2] or .53,
+                enabled and c[3] or .60)
+            b.state:SetText(enabled and "ON" or "OFF")
+            b.state:SetTextColor(enabled and .39 or .88,enabled and .92 or .48,enabled and .56 or .45)
+        end
     end
 end
 local function SetStorage(key)
@@ -257,20 +261,23 @@ local function MakeStorage(parent)
         b.limit:SetJustifyH("CENTER")
         b.selected=Text(b,"SELECTED",8,5,9,C.gold,117)
         b.selected:SetJustifyH("RIGHT")
-        storageButtons[profile]=b
+        if not storageButtons[profile] then storageButtons[profile]={} end
+        storageButtons[profile][#storageButtons[profile]+1]=b
     end
 end
 local function UpdateStorage()
     local selected=StorageKey()
-    for key,b in pairs(storageButtons) do
+    for key,buttons in pairs(storageButtons) do
         local active=selected==key
-        local color=b.profileColor
-        b.base:SetColorTexture(active and .24 or .045,active and .17 or .073,
-            active and .045 or .13,1)
-        b.label:SetTextColor(active and 1 or .88,active and .82 or .90,active and .34 or .98)
-        b.limit:SetTextColor(active and 1 or color[1],active and .82 or color[2],
-            active and .32 or color[3])
-        b.selected:SetShown(active)
+        for _,b in ipairs(buttons) do
+            local color=b.profileColor
+            b.base:SetColorTexture(active and .24 or .045,active and .17 or .073,
+                active and .045 or .13,1)
+            b.label:SetTextColor(active and 1 or .88,active and .82 or .90,active and .34 or .98)
+            b.limit:SetTextColor(active and 1 or color[1],active and .82 or color[2],
+                active and .32 or color[3])
+            b.selected:SetShown(active)
+        end
     end
 end
 
