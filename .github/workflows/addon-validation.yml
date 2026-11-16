@@ -80,7 +80,7 @@ jobs:
           header = Path('Media/modern_header.tga').read_bytes()
           assert header[2] == 2 and header[16] == 32, "Modern banner must be 32bit TGA"
           width, height = unpack('<HH', header[12:16])
-          assert width == 1024 and height == 128
+          assert width == 1024 and height == 128, f"Banner dimensions: {width}x{height}"
           assert len(header) == 18 + width * height * 4
           ui = Path('UI.lua').read_text(encoding='utf-8')
           core = Path('Core.lua').read_text(encoding='utf-8')
