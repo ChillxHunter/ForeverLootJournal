@@ -409,7 +409,7 @@ function S.Build(window)
         navButtons[id]=b
     end
     Button(left,8,377,186,35,"Back to Journal",function() S.Hide() end)
-    Text(left,"v1.6.0  |  Saved automatically",12,426,10,C.muted,182)
+    Text(left,"v1.6.1  |  Saved automatically",12,426,10,C.muted,182)
     BuildRarityPage();BuildStoragePage();BuildDisplayPage();BuildProfilesPage()
     overlay:Hide();RefreshPages();S.Refresh()
 end

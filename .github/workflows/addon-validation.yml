@@ -7,6 +7,7 @@ on:
       - 'Media/**'
       - 'tools/test_minimap.lua'
       - 'tools/test_sync.lua'
+      - 'tools/test_roll_chat.lua'
       - 'tools/test_storage.lua'
       - 'tools/test_crafting.lua'
       - 'tools/test_rarity.lua'
@@ -43,6 +44,8 @@ jobs:
         run: lua5.1 tools/test_minimap.lua
       - name: Test cross-zone party loot synchronization
         run: lua5.1 tools/test_sync.lua
+      - name: Test Forever chat rolls and player identity
+        run: lua5.1 tools/test_roll_chat.lua
       - name: Test saved-loot storage presets
         run: lua5.1 tools/test_storage.lua
       - name: Test crafting recipe scanner
@@ -114,3 +117,17 @@ jobs:
           print('Manifest, artwork and filter checks passed')
           PY
 
+
+      - name: Verify installable addon ZIP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          toc=Path('ForeverLootJournal.toc').read_text()
+          version=next(line.split(': ',1)[1] for line in toc.splitlines() if line.startswith('## Version: '))
+          archive=zipfile.ZipFile('downloads/ForeverLootJournal_v'+version+'.zip')
+          assert archive.testzip() is None, 'ZIP CRC or compressed bytes failed'
+          for name in ['Core.lua','Theme.lua','UI.lua','Minimap.lua','Sync.lua','Crafting.lua','Social.lua','ModernSettings.lua','ForeverLootJournal.toc','README.md']:
+              assert archive.read('ForeverLootJournal/'+name)==Path(name).read_bytes(), 'Stale packaged source: '+name
+          print('Installable ZIP matches the tested source')
+          PY

@@ -128,6 +128,17 @@ local function Clean(s)
 end
 local function Key(s) s = Clean(s); return s and s:lower() or nil end
 local function ShortName(s) return s and s:match("^([^-]+)") or nil end
+local function NameForm(s)
+    local key=Key(s)
+    return key and key:gsub("[%s%-]+","-") or nil
+end
+local function RosterAlias(name,canonical)
+    local key=NameForm(name)
+    if not key then return end
+    local previous=groupNames[key]
+    if previous==nil or previous==canonical then groupNames[key]=canonical
+    else groupNames[key]=false end -- Ambiguous short names must never pick a realm.
+end
 local function SafeCall(fn, ...)
     if type(fn) ~= "function" then return nil end
     local ok, a,b,c,d,e,f,g,h,i,j,k,l,m,n = pcall(fn, ...)
@@ -186,8 +197,13 @@ end
 local function Resolve(name)
     name=Clean(name)
     if not name then return nil end
-    local low=Key(name)
-    return groupNames[low] or (not name:find("-",1,true) and groupNames[Key(ShortName(name))]) or name
+    name=name:gsub("|Hplayer:[^|]+|h%[(.-)%]|h","%1"):gsub("|Hplayer:[^|]+|h(.-)|h","%1")
+    return groupNames[NameForm(name)] or name
+end
+FLJ.ResolvePlayer=Resolve
+function FLJ.SamePlayer(a,b)
+    local left,right=NameForm(Resolve(a)),NameForm(Resolve(b))
+    return left~=nil and right~=nil and left==right
 end
 local function Notify()
     if FLJ.UI and FLJ.UI.Refresh then FLJ.UI.Refresh() end
@@ -234,8 +250,8 @@ local function RegisterRoster()
             local full=nm and (realm and realm~="" and (nm.."-"..realm) or nm)
             if full then
                 -- Do not collapse different realms with identical short names in the saved DB.
-                groupNames[Key(full)] = full
-                if not groupNames[Key(nm)] then groupNames[Key(nm)] = full end
+                RosterAlias(full,full)
+                RosterAlias(nm,full)
                 inGroup[Key(full)] = true
                 groupUnits[Key(full)] = unit
                 local _,class=SafeCall(UnitClass,unit)
@@ -320,7 +336,7 @@ local function RecentMatch(info,winner,seconds,requireRoll,withoutReceipt)
         if now-(r.time or 0) > (seconds or 15) then break end
         local sameItem=(info.id and r.itemID==info.id)
             or (type(info.link)=="string" and info.link~="" and r.link==info.link)
-        if sameItem and (not winner or (r.winner and Key(ShortName(r.winner))==Key(ShortName(winner))))
+        if sameItem and (not winner or (r.winner and FLJ.SamePlayer(r.winner,winner)))
           and (not requireRoll or r.source=="Group roll") and (not withoutReceipt or not r.receipt) then
             return r
         end
@@ -463,8 +479,175 @@ local function TrackLootMessage(msg)
     if pk==myself and FLJ.SendSelfLoot then FLJ.SendSelfLoot(rec) end
     Notify()
 end
+-- Classic/Forever chat fallback: some clients have no encounter-scoped history.
+-- Only CHAT_MSG_LOOT is parsed; ordinary player chat cannot create loot records.
+local rollChatPending={}
+local function MatchRollFormat(format,message)
+    format=Clean(format)
+    if not format then return nil end
+    local parts,indices={},{}
+    local offset,sequence=1,0
+    while true do
+        local first,last,index,kind=format:find("%%(%d*)%$?([sd])",offset)
+        if not first then
+            parts[#parts+1]=(format:sub(offset):gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])","%%%1"))
+            break
+        end
+        parts[#parts+1]=(format:sub(offset,first-1):gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])","%%%1"))
+        sequence=sequence+1
+        indices[#indices+1]=tonumber(index) or sequence
+        parts[#parts+1]=kind=="d" and "(%d+)" or "(.-)"
+        offset=last+1
+    end
+    if #indices==0 then return nil end
+    local captures={message:match("^"..table.concat(parts).."$")}
+    if #captures==0 then return nil end
+    local values={}
+    for i,index in ipairs(indices) do values[index]=captures[i] end
+    return values
+end
+local rollFormats={
+    {"LOOT_ROLL_WON","won",1},
+    {"LOOT_ROLL_YOU_WON","won",0},
+    {"LOOT_ROLL_ROLLED_NEED","roll",3,"Need",1},
+    {"LOOT_ROLL_ROLLED_GREED","roll",3,"Greed",1},
+    {"LOOT_ROLL_ROLLED_DE","roll",3,"Disenchant",1},
+    {"LOOT_ROLL_NEED","choice",1,"Need"},
+    {"LOOT_ROLL_GREED","choice",1,"Greed"},
+    {"LOOT_ROLL_DISENCHANT","choice",1,"Disenchant"},
+    {"LOOT_ROLL_PASSED","choice",1,"Pass"},
+    {"LOOT_ROLL_NEED_SELF","choice",0,"Need"},
+    {"LOOT_ROLL_GREED_SELF","choice",0,"Greed"},
+    {"LOOT_ROLL_DISENCHANT_SELF","choice",0,"Disenchant"},
+    {"LOOT_ROLL_PASSED_SELF","choice",0,"Pass"},
+    {"LOOT_ROLL_ALL_PASSED","passed"},
+}
+local function ParseRollMessage(message)
+    message=Clean(message)
+    if not message then return nil end
+    local link=ExtractItemLink(message)
+    if not link then return nil end
+    for _,format in ipairs(rollFormats) do
+        local args=MatchRollFormat(_G[format[1]],message)
+        if args then
+            return {link=link,kind=format[2],player=format[3]==0 and MyName() or args[format[3]],
+                action=format[4],value=format[5] and tonumber(args[format[5]])}
+        end
+    end
+    -- Exact English forms used by Forever, even if its globals use another form.
+    local first,last=message:find("|Hitem:.-|h%[.-%]|h")
+    if not first then return nil end
+    local text=(message:sub(1,first-1).."\001"..message:sub(last+1)):lower()
+    text=text:gsub("^%[loot%]%s*:%s*","")
+    local player=text:match("^(.-) won:%s*\001%.?$") or text:match("^(.-) won%s+\001%.?$")
+    if player then return {link=link,kind="won",player=player=="you" and MyName() or player} end
+    for _,action in ipairs({"Need","Greed","Disenchant"}) do
+        local number,name=text:match("^"..action:lower().." roll %- (%d+) for \001 by (.-)%.?$")
+        if not number then number,name=text:match("^"..action:lower().." roll of (%d+) for \001 by (.-)%.?$") end
+        if number then return {link=link,kind="roll",player=name,action=action,value=tonumber(number)} end
+        if text:match("^you have selected "..action:lower().." for:%s*\001%.?$") then
+            return {link=link,kind="choice",player=MyName(),action=action}
+        end
+        name=text:match("^(.-) has selected "..action:lower().." for:%s*\001%.?$")
+        if name then return {link=link,kind="choice",player=name,action=action} end
+    end
+    player=text:match("^(.-) passed on:%s*\001%.?$")
+    if player then return {link=link,kind="choice",player=player=="you" and MyName() or player,action="Pass"} end
+    if text:match("^everyone passed on:%s*\001%.?$") then return {link=link,kind="passed"} end
+end
+local function SameDrop(record,info)
+    local a=record.link and (record.link:match("|H(item:[^|]+)|h") or record.link:match("^(item:[^|%s]+)"))
+    local b=info.link and (info.link:match("|H(item:[^|]+)|h") or info.link:match("^(item:[^|%s]+)"))
+    if a and b then return a==b end
+    return info.id and record.itemID==info.id
+end
+local function FindChatRecord(info,data)
+    for _,record in ipairs(DB.records) do
+        local age=Now()-(record.time or 0)
+        if age>180 then break end
+        if SameDrop(record,info) then
+            if not record.winner and record.status~="All passed" and record.source=="Group roll" then return record end
+            if record.source=="Group roll" then
+                if data.kind=="won" and age<=8 and FLJ.SamePlayer(record.winner,data.player) then return record end
+                if data.kind=="roll" and age<=2 then
+                    for _,roll in ipairs(record.rolls or {}) do
+                        if FLJ.SamePlayer(roll.name,data.player) and
+                            (roll.value==data.value or (roll.value==nil and not record.receipt)) then return record end
+                    end
+                end
+            end
+            if record.source~="Group roll" and data.kind=="won" and age<=25 and FLJ.SamePlayer(record.winner,data.player) then return record end
+        end
+    end
+end
+local function ApplyRollChat(data)
+    if not DB then return true end
+    if data.player and not data.authorized then
+        data.player=Resolve(data.player)
+        local pk=PlayerKey(data.player)
+        if not pk or (not inGroup[pk] and not FLJ.SamePlayer(data.player,MyName())) then
+            RegisterRoster()
+            data.player=Resolve(data.player);pk=PlayerKey(data.player)
+            if not pk or (not inGroup[pk] and not FLJ.SamePlayer(data.player,MyName())) then return true end
+        end
+        data.authorized=true
+    end
+    local info=Gear(data.link)
+    if not info then return false end
+    local record=FindChatRecord(info,data)
+    if not record then
+        local allowed=RegistrationAllowed(info.quality)
+        if allowed==nil then
+            if info.id and C_Item and C_Item.RequestLoadItemDataByID then SafeCall(C_Item.RequestLoadItemDataByID,info.id) end
+            return false
+        elseif allowed==false then return true end
+        record=AddRecord(info,"Group roll")
+        if not record then return true end
+        record.status="Rolling"
+    end
+    record.source="Group roll"
+    record.chatRoll=true
+    SetMetadata(record,info)
+    record.rolls=record.rolls or {}
+    if data.kind=="passed" then
+        if not record.winner then record.status="All passed" end
+    else
+        local entry
+        for _,roll in ipairs(record.rolls) do if FLJ.SamePlayer(roll.name,data.player) then entry=roll;break end end
+        if not entry then
+            local player=EnsurePlayer(data.player)
+            entry={name=data.player,class=player and player.class}
+            record.rolls[#record.rolls+1]=entry
+        end
+        if data.action then entry.action=data.action end
+        if data.value then entry.value=data.value end
+        if data.kind=="won" then
+            SetWinner(record,data.player,entry.class)
+            record.status="Won"
+            for _,roll in ipairs(record.rolls) do roll.winner=FLJ.SamePlayer(roll.name,record.winner) end
+            entry.action=entry.action or "Winner"
+        end
+    end
+    Notify()
+    return true
+end
+local function TrackRollMessage(message)
+    message=Plain(message)
+    local data=type(message)=="string" and ParseRollMessage(message)
+    if data and not ApplyRollChat(data) then rollChatPending[#rollChatPending+1]={data=data,time=Now()} end
+end
+local function RunRollChatDeferred()
+    local pending=rollChatPending
+    rollChatPending={}
+    for _,entry in ipairs(pending) do
+        if Now()-entry.time<60 and not ApplyRollChat(entry.data) then rollChatPending[#rollChatPending+1]=entry end
+    end
+end
+
 local function RunDeferred()
-    if not DB or #deferred==0 then return end
+    if not DB then return end
+    RunRollChatDeferred()
+    if #deferred==0 then return end
     local pending=deferred; deferred={}
     for _,p in ipairs(pending) do
         if Now()-(p.time or 0)<60 then
@@ -533,7 +716,7 @@ local function ProcessHistory(encounterID,lootListKey)
         rec.source="Group roll"
     end
     SetMetadata(rec,item)
-    rec.rolls={}
+    if type(drop.rollInfos)=="table" and #drop.rollInfos>0 then rec.rolls={} else rec.rolls=rec.rolls or {} end
     local seenNames={}
     if type(drop.rollInfos)=="table" then
         for _,raw in ipairs(drop.rollInfos) do
@@ -568,7 +751,7 @@ local function ProcessHistory(encounterID,lootListKey)
     elseif Plain(drop.allPassed)==true then
         rec.status="All passed"
     else
-        rec.status="Rolling"
+        rec.status=rec.winner and "Won" or "Rolling"
     end
     if #rec.rolls==0 and rec.winner==nil and rec.status=="Rolling" then
         -- A roll can arrive before the first choice; leave status as Rolling.
@@ -614,7 +797,7 @@ local function RetryUpdate(enc,key)
 end
 function FLJ.ClearRecords()
     if not DB then return end
-    wipe(DB.records); wipe(recentRolls); wipe(deferredRemote); wipe(deferred)
+    wipe(DB.records); wipe(recentRolls); wipe(deferredRemote); wipe(deferred); wipe(rollChatPending)
     for _,p in pairs(DB.players) do p.lootCount=0 end
     Notify()
 end
@@ -658,6 +841,7 @@ f:SetScript("OnEvent",function(_,event,a,b,c)
     elseif event=="GROUP_ROSTER_UPDATE" or event=="PLAYER_LEVEL_UP" then
         RegisterRoster()
     elseif event=="CHAT_MSG_LOOT" then
+        TrackRollMessage(a)
         TrackLootMessage(a)
     elseif event=="LOOT_HISTORY_UPDATE_DROP" then
         if not ProcessHistory(a,b) then RetryUpdate(Plain(a),Plain(b)) end

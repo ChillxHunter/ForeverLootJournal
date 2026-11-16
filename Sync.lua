@@ -40,6 +40,7 @@ local function Short(s)
 end
 
 local function SamePlayer(a,b)
+    if FLJ.SamePlayer then return FLJ.SamePlayer(a,b) end
     a,b=Lower(a),Lower(b)
     if a==b then return true end
     local ar,br=a:find("-",1,true),b:find("-",1,true)
@@ -130,7 +131,7 @@ local function HandleMessage(prefix,message,channel,sender)
         return
     end
     -- A small message without dynamic code execution or external libraries.
-    local serial,cls,itemString,zone=message:match("^L1\t(%d+)\t([249])\t([^\t]+)\t(.*)$")
+    local serial,cls,itemString,zone=message:match("^L1\t(%d+)\t(%d+)\t([^\t]+)\t(.*)$")
     if not serial or #serial>15 or #itemString>176 then return end
     if itemString:find("[%c|]") or not itemString:match("^item:%d+") then return end
     if type(zone)~="string" or #zone>48 or zone:find("[%c]") then return end

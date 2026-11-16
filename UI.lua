@@ -151,6 +151,11 @@ local function GetSelected()
 end
 local function PlayerMatches(r)
     if not chosenPlayer then return true end
+    if FLJ.SamePlayer then
+        if FLJ.SamePlayer(r.winner,chosenPlayer) then return true end
+        for _,roll in ipairs(r.rolls or {}) do if FLJ.SamePlayer(roll.name,chosenPlayer) then return true end end
+        return false
+    end
     local s=T(chosenPlayer)
     if T(r.winner)==s or T(r.winner):match("^([^-]+)")==s then return true end
     for _,v in ipairs(r.rolls or {}) do
@@ -921,6 +926,8 @@ function UI.Refresh()
     for i,r in ipairs(playerRows) do
         if players[i+playerOffset] then SetPlayerRow(r,players[i+playerOffset]) else r:Hide() end
     end
+    listEmpty:SetText(chosenPlayer and ("No matching equipment for "..chosenPlayer..". Choose All players to view everyone.") or
+        "No matching loot yet. Items appear after your group obtains weapons or armor.")
     listEmpty:SetShown(#loot==0)
     local selectedVisible=false
     if selectedID then

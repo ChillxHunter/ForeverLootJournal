@@ -1,5 +1,16 @@
 # Forever Loot Journal
 
+## Version 1.6.1 - Forever group-roll registration
+
+- Records the server's Need/Greed/Pass, numeric roll and winner chat messages when encounter-scoped loot history is unavailable.
+- Resolves current roster names consistently when chat uses spaces and the roster uses hyphens. Ambiguous short names and different explicit realms remain separate.
+- Merges a roll result, its later loot receipt and the game's history update into one entry; preserves observed rolls when a history update has no roll list.
+- Retries uncached item metadata and honors rarity registration. Player filters use the same identity matching as recording and party sync.
+- Fixes incoming profession-item sync payloads to accept the same supported classes as the sender and core.
+
+Install the full ZIP while WoW is closed and keep your WTF folder. Open with /flj. This update records future observed loot messages; a previously missed drop cannot be reconstructed from a screenshot.
+
+
 ## Version 1.6.0 - gilded loot journal and profession drops
 
 - Larger circular item icons with custom gold rings, warm selection and hover effects, a subtle gold-lit header, and live loot/player/crafting-drop counters.

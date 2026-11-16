@@ -315,6 +315,22 @@ local rings=0
 for _,f in ipairs(frames) do if f.texture=="Interface\\AddOns\\ForeverLootJournal\\Media\\f_item_ring" then rings=rings+1 end end
 assert(rings>=5,"gold circular item frames missing")
 assert(ClickButton("All Equipment"),"could not return to loot journal")
+-- The UI must use Core's canonical identity matcher for legacy chat spellings.
+local savedWinner=db.records[1].winner
+db.records[1].winner="legacy-spelling"
+addon.SamePlayer=function(a,b)
+    return (a=="legacy-spelling" and b=="Chillx-Ranger") or a==b
+end
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+local matchedLegacy=false
+for _,f in ipairs(frames) do
+    if f.itemName and f.record and f.record.id==1 and f:IsShown() then matchedLegacy=true end
+end
+assert(matchedLegacy,"player filter ignored canonical identity matching")
+db.records[1].winner=savedWinner
+playerButton.scripts.OnClick(playerButton,"LeftButton")
+addon.SamePlayer=nil
+
 io.write("Header layering, row selection, decimal stats and rarity filter regressions passed\n")
 
 -- Export the widgets created by the real addon code for a layout preview.
