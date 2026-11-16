@@ -1,4 +1,4 @@
--- Forever Loot Journal 1.3.0: modern dark-blue / gold WoW journal
+-- Forever Loot Journal 1.4.0: readable dark-blue / gold WoW journal
 local addonName, FLJ = ...
 FLJ.UI = FLJ.UI or {}
 local UI = FLJ.UI
@@ -19,9 +19,10 @@ local craftingQuery, craftingOffset, selectedCraftID, craftingMaterialsOffset = 
 local CRAFT_VISIBLE=9
 local storageProfileButton, storageProfileMenu, storageProfileRows
 local rarityButtons={}
-local ITEM_VISIBLE = 4
+local qualityMinimum, qualityFilterButton, archiveSummary, playerRange
+local ITEM_VISIBLE = 6
 local PLAYER_VISIBLE = 11
-local ITEM_ROW_HEIGHT = 57
+local ITEM_ROW_HEIGHT = 35
 local PLAYER_ROW_HEIGHT = 40
 local TEXTURE = "Interface\\AddOns\\ForeverLootJournal\\Media\\"
 local placeholder = "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -59,7 +60,7 @@ local function Border(parent,r,g,b,thick)
 end
 local function Label(parent,text,size,col,justify)
     local fs=parent:CreateFontString(nil,"OVERLAY", "GameFontNormal")
-    fs:SetFont("Fonts\\FRIZQT__.TTF",size or 13, "OUTLINE")
+    fs:SetFont((size or 13)>=17 and "Fonts\\FRIZQT__.TTF" or "Fonts\\ARIALN.TTF",size or 13, "")
     fs:SetText(text or "")
     fs:SetTextColor(Color(col or parchment))
     fs:SetJustifyH(justify or "LEFT")
@@ -69,9 +70,7 @@ end
 local function Panel(parent,x,y,w,h,bg)
     local p=CreateFrame("Frame", nil, parent)
     p:SetSize(w,h); p:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
-    local base=bg or panel
-    local level=(base[1]+base[2]+base[3])/3
-    Fill(p,{.017+level*.23,.029+level*.33,.050+level*.52,base[4] or 1})
+    Fill(p,bg or panel)
     Border(p,.21,.31,.44,1)
     return p
 end
@@ -100,12 +99,12 @@ local function Edit(parent,x,y,w,h,hint,handler)
     icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
     icon:SetSize(16,16)
     icon:SetPoint("LEFT",wrap,"LEFT",8,0)
-    local edit=CreateFrame("EditBox",nil,wrap,"InputBoxTemplate")
+    local edit=CreateFrame("EditBox",nil,wrap)
     edit:SetAutoFocus(false); edit:SetSize(w-42,h-8)
     edit:SetPoint("LEFT",wrap,"LEFT",28,0)
     edit:SetMaxLetters(70)
-    edit:SetFont("Fonts\\FRIZQT__.TTF",12,"")
-    edit:SetTextColor(1,.91,.72)
+    edit:SetFont("Fonts\\ARIALN.TTF",13,"")
+    edit:SetTextColor(.90,.94,1)
     edit:SetScript("OnEscapePressed",function(self) self:ClearFocus() end)
     edit:SetScript("OnEnterPressed",function(self) self:ClearFocus() end)
     local prompt=Label(wrap,hint,11,muted)
@@ -170,7 +169,7 @@ local function FilteredLoot()
     for _,r in ipairs(FLJ.GetRecords()) do
         local kind=GearClass(r)
         local valid=((gearFilter=="all" and kind~=9) or (gearFilter=="armor" and kind==4) or (gearFilter=="weapons" and kind==2))
-        if valid and PlayerMatches(r) and (searchText=="" or Includes(r.name,searchText) or Includes(r.winner,searchText) or Includes(r.zone,searchText) or Includes(r.subtype,searchText)) then
+        if valid and (not qualityMinimum or (tonumber(r.quality) or -1)>=qualityMinimum) and PlayerMatches(r) and (searchText=="" or Includes(r.name,searchText) or Includes(r.winner,searchText) or Includes(r.zone,searchText) or Includes(r.subtype,searchText)) then
             rows[#rows+1]=r
         end
     end
@@ -251,26 +250,26 @@ local function ClassPortrait(parent,x,y,size)
     return f
 end
 local function MakeItemRow(parent,index)
-    local y=8+(index-1)*ITEM_ROW_HEIGHT
+    local y=32+(index-1)*ITEM_ROW_HEIGHT
     local r=CreateFrame("Button",nil,parent)
     r:SetSize(776,ITEM_ROW_HEIGHT-4)
     r:SetPoint("TOPLEFT",parent,"TOPLEFT",8,-y)
     r.background=Fill(r,{.050,.076,.118,1})
     Border(r,.23,.34,.48,1)
     r.selected=MakeTexture(r,"BORDER",{.42,.33,.10,.31}); r.selected:SetAllPoints(); r.selected:Hide()
-    r.icon=Icon(r,8,6,41)
-    r.itemName=Label(r,"",14,gold)
-    r.itemName:SetPoint("TOPLEFT",r,"TOPLEFT",60,-7)
+    r.icon=Icon(r,6,2,27)
+    r.itemName=Label(r,"",13,gold)
+    r.itemName:SetPoint("TOPLEFT",r,"TOPLEFT",44,-2)
     r.itemName:SetWidth(350)
     r.itemName:SetHeight(19)
-    r.meta=Label(r,"",11,muted)
-    r.meta:SetPoint("TOPLEFT",r,"TOPLEFT",60,-30)
+    r.meta=Label(r,"",10,muted)
+    r.meta:SetPoint("TOPLEFT",r,"TOPLEFT",44,-19)
     r.meta:SetWidth(370)
     r.winner=Label(r,"",12,parchment,"RIGHT")
-    r.winner:SetPoint("TOPRIGHT",r,"TOPRIGHT",-10,-7)
+    r.winner:SetPoint("TOPRIGHT",r,"TOPRIGHT",-10,-2)
     r.winner:SetWidth(280)
     r.when=Label(r,"",10,muted,"RIGHT")
-    r.when:SetPoint("TOPRIGHT",r,"TOPRIGHT",-10,-31)
+    r.when:SetPoint("TOPRIGHT",r,"TOPRIGHT",-10,-19)
     r.when:SetWidth(280)
     r:SetScript("OnEnter",function(self) self.background:SetColorTexture(.10,.15,.22,1) end)
     r:SetScript("OnLeave",function(self) self.background:SetColorTexture(.050,.076,.118,1) end)
@@ -288,7 +287,7 @@ local function SetRow(r,rec)
     local kind=(rec.subtype or rec.type or "Equipment")
     local status=rec.status or "Recorded"
     r.meta:SetText((rec.itemLevel and ("iLvl "..rec.itemLevel.."   |   ") or "")..kind.."   |   "..status)
-    r.winner:SetText("Obtained by: "..(rec.winner or "Unknown"))
+    r.winner:SetText(rec.winner or (rec.status=="All passed" and "All passed" or "Awaiting winner"))
     r.when:SetText((rec.zone or "Unknown zone").."   |   "..Date(rec.time))
     r.selected:SetShown(rec.id==selectedID)
     r:Show()
@@ -355,23 +354,23 @@ local function MakePlayerRow(parent,index)
     return r
 end
 local function MakeDetail(parent)
-    local p=Panel(parent,288,506,797,280,{.079,.073,.064,1})
+    local p=Panel(parent,288,506,797,280,{.030,.048,.081,1})
     local hdr=p:CreateTexture(nil,"ARTWORK")
-    hdr:SetTexture("Interface\Buttons\WHITE8X8")
+    hdr:SetTexture("Interface\\Buttons\\WHITE8X8")
     hdr:SetVertexColor(.066,.113,.183,1)
     hdr:SetPoint("TOPLEFT",1,-1); hdr:SetPoint("TOPRIGHT",-1,-1); hdr:SetHeight(37)
     p.header=Label(p,"ITEM DETAILS & ROLL HISTORY",15,gold)
     p.header:SetPoint("TOPLEFT",p,"TOPLEFT",14,-10)
     p.icon=Icon(p,13,47,53)
     p.name=Label(p,"Select any item to view its equipment and roll details.",15,parchment)
-    p.name:SetPoint("TOPLEFT",p,"TOPLEFT",80,-50); p.name:SetWidth(320)
+    p.name:SetPoint("TOPLEFT",p,"TOPLEFT",80,-50); p.name:SetWidth(274)
     p.name:SetHeight(21)
     p.source=Label(p,"",11,muted)
-    p.source:SetPoint("TOPLEFT",p,"TOPLEFT",80,-77);p.source:SetWidth(330)
+    p.source:SetPoint("TOPLEFT",p,"TOPLEFT",80,-77);p.source:SetWidth(274)
     p.won=Label(p,"",12,gold)
-    p.won:SetPoint("TOPLEFT",p,"TOPLEFT",80,-97);p.won:SetWidth(330)
+    p.won:SetPoint("TOPLEFT",p,"TOPLEFT",80,-97);p.won:SetWidth(274)
     p.winnerInfo=Label(p,"",10,muted)
-    p.winnerInfo:SetPoint("TOPLEFT",p,"TOPLEFT",80,-117);p.winnerInfo:SetWidth(322)
+    p.winnerInfo:SetPoint("TOPLEFT",p,"TOPLEFT",80,-117);p.winnerInfo:SetWidth(274)
     p.classIcon=ClassPortrait(p,368,53,29);p.classIcon:Hide()
     p.statHead=Label(p,"ITEM STATS",11,gold)
     p.statHead:SetPoint("TOPLEFT",p,"TOPLEFT",14,-143)
@@ -450,12 +449,17 @@ local function DetailRefresh()
     if rec.subtype then info[#info+1]=rec.subtype end
     if rec.requiredLevel and rec.requiredLevel>0 then info[#info+1]="Requires level "..rec.requiredLevel end
     for _,s in ipairs(stats) do
-        info[#info+1]=(s.label or s.key)..": "..(s.value>0 and "+" or "")..tostring(s.value)
+        local value=tonumber(s.value)
+        local formatted=value and string.format(value%1==0 and "%.0f" or "%.2f",value) or tostring(s.value or "--")
+        info[#info+1]=(s.label or s.key or "Stat")..": "..(value and value>0 and "+" or "")..formatted
     end
     for i,lab in ipairs(detail.stats) do
         lab:SetText(info[i] or (i==1 and "Hover the item icon for complete stats." or ""))
     end
-    local rolls=rec.rolls or {}
+    -- Sorting for display must not reorder the persisted roll history.
+    local rolls={}
+    for _,roll in ipairs(rec.rolls or {}) do rolls[#rolls+1]=roll end
+    detailRollOffset=math.min(detailRollOffset,math.max(0,#rolls-9))
     if #rolls==0 then
         detail.rollStatus:SetText(rec.source=="Group roll" and "Awaiting roll choices..." or "No group roll recorded for this item")
     else
@@ -623,7 +627,7 @@ local function CraftingRefresh()
     end
 end
 local function MakeCraftingPane(parent)
-    craftingPane=Panel(parent,284,241,803,545,{.083,.069,.054,1})
+    craftingPane=Panel(parent,284,241,803,545,{.030,.048,.081,1})
     local heading=Label(craftingPane,"LEARNED CRAFTING RECIPES",15,gold)
     heading:SetPoint("TOPLEFT",craftingPane,"TOPLEFT",13,-16)
     craftingCount=Label(craftingPane,"Open a profession to scan",10,muted)
@@ -634,15 +638,15 @@ local function MakeCraftingPane(parent)
         selectedCraftID=nil
         CraftingRefresh()
     end)
-    local listPanel=Panel(craftingPane,11,67,390,466,{.055,.049,.040,1})
-    local detailPanel=Panel(craftingPane,413,67,377,466,{.065,.056,.045,1})
+    local listPanel=Panel(craftingPane,11,67,390,466,{.020,.034,.059,1})
+    local detailPanel=Panel(craftingPane,413,67,377,466,{.026,.043,.072,1})
     craftingRows={}
     for i=1,CRAFT_VISIBLE do
         local row=CreateFrame("Button",nil,listPanel)
         row:SetSize(372,47)
         row:SetPoint("TOPLEFT",listPanel,"TOPLEFT",9,-8-(i-1)*50)
-        Fill(row,{.13,.112,.081,1})
-        Border(row,.33,.26,.15,1)
+        Fill(row,{.050,.076,.118,1})
+        Border(row,.23,.34,.48,1)
         row.highlight=MakeTexture(row,"BORDER",{.63,.43,.16,.28})
         row.highlight:SetAllPoints()
         row.highlight:Hide()
@@ -868,10 +872,19 @@ function UI.Refresh()
         FLJ.SettingsUI.Refresh()
     end
     local crafting=gearFilter=="crafting"
+    if qualityFilterButton then qualityFilterButton:SetShown(not crafting) end
     if lootListPanel then lootListPanel:SetShown(not crafting) end
     if detail then detail:SetShown(not crafting) end
     if craftingPane then craftingPane:SetShown(crafting) end
     local players=FilteredPlayers()
+    playerOffset=math.max(0,math.min(playerOffset,math.max(0,#players-PLAYER_VISIBLE)))
+    playerLabel:SetText(chosenPlayer or "All players")
+    if playerRange then playerRange:SetText(#players.." players"..(chosenPlayer and "  |  Filter active" or "")) end
+    if archiveSummary then
+        local _,limit=FLJ.GetStoragePreset()
+        local recipes=FLJ.Crafting and FLJ.Crafting.GetRecipes and #FLJ.Crafting.GetRecipes() or 0
+        archiveSummary:SetText(FormatLimit(#FLJ.GetRecords()).." / "..FormatLimit(limit).." saved  |  "..#FLJ.GetPlayers().." players  |  "..recipes.." recipes")
+    end
     if crafting then
         for i,r in ipairs(playerRows) do
             local pl=players[i+playerOffset]
@@ -891,14 +904,10 @@ function UI.Refresh()
     if listOffset>minListOffset then listOffset=minListOffset end
     playerLabel:SetText(chosenPlayer or "All players")
     local filterName=gearFilter=="armor" and "ARMOR" or gearFilter=="weapons" and "WEAPONS" or "ALL EQUIPMENT"
-    countText:SetText(filterName.."  |  "..tostring(#loot).." matching records  |  "..tostring(#FLJ.GetPlayers()).." known players")
+    countText:SetText(filterName.."  |  "..(#loot>0 and (listOffset+1).."-"..math.min(#loot,listOffset+ITEM_VISIBLE).." of " or "")..#loot.." records"..(qualityMinimum and ("  |  "..(qualityMinimum==3 and "Rare+" or "Epic+")) or ""))
     titleText:SetText("LOOT ARCHIVE")
     for i,r in ipairs(playerRows) do
         if players[i+playerOffset] then SetPlayerRow(r,players[i+playerOffset]) else r:Hide() end
-    end
-    for i,r in ipairs(itemRows) do
-        local rec=loot[i+listOffset]
-        if rec then SetRow(r,rec) else r:Hide() end
     end
     listEmpty:SetShown(#loot==0)
     local selectedVisible=false
@@ -910,6 +919,10 @@ function UI.Refresh()
     if not selectedVisible then
         selectedID=loot[1] and loot[1].id or nil
         detailRollOffset=0
+    end
+    for i,r in ipairs(itemRows) do
+        local rec=loot[i+listOffset]
+        if rec then SetRow(r,rec) else r:Hide() end
     end
     DetailRefresh()
     DropdownRefresh()
@@ -961,7 +974,9 @@ local function MakeFrame()
     table.insert(UISpecialFrames,"ForeverLootJournalFrame")
     Fill(frame,shadow)
     Border(frame,.76,.54,.20,3)
-    local inner=Panel(frame,7,7,W-14,H-14,{.025,.044,.072,1})
+    -- Root artwork must stay on the root. An opaque full-size child frame
+    -- renders above its parent's title, banner, borders and other regions.
+    Fill(frame,{.025,.044,.072,1},7)
     local background=MakeTexture(frame,"BORDER",{.009,.021,.040,.94})
     background:SetPoint("TOPLEFT",frame,"TOPLEFT",12,-120)
     background:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",-12,12)
@@ -986,6 +1001,9 @@ local function MakeFrame()
     headerSubtitle=Label(frame,"Loot tracker  |  Crafting journal  |  Party & raid history",11,parchment)
     headerSubtitle:SetPoint("TOPLEFT",frame,"TOPLEFT",96,-72)
     headerSubtitle:SetWidth(680)
+    archiveSummary=Label(frame,"",11,muted)
+    archiveSummary:SetPoint("TOPLEFT",frame,"TOPLEFT",560,-77)
+    archiveSummary:SetWidth(420)
     local settingsButton=Button(frame,992,31,46,41,"",function()
         if FLJ.SettingsUI then FLJ.SettingsUI.Toggle() end
     end)
@@ -1025,6 +1043,15 @@ local function MakeFrame()
     local liveText=Label(side,"Green = currently in your group",10,{.62,.79,.53})
     liveText:SetPoint("LEFT",legendDot,"RIGHT",6,0)
     local roster=Panel(side,0,170,260,470,{.031,.052,.084,1})
+    playerRange=Label(side,"",11,muted)
+    playerRange:SetPoint("TOPLEFT",side,"TOPLEFT",12,-645)
+    playerRange:SetWidth(182)
+    Button(side,207,641,21,19,"^",function()
+        playerOffset=math.max(0,playerOffset-PLAYER_VISIBLE);UI.Refresh()
+    end)
+    Button(side,232,641,21,19,"v",function()
+        playerOffset=math.min(math.max(0,#FilteredPlayers()-PLAYER_VISIBLE),playerOffset+PLAYER_VISIBLE);UI.Refresh()
+    end)
     playerRows={}
     for i=1,PLAYER_VISIBLE do playerRows[i]=MakePlayerRow(roster,i) end
     ScrollWheel(roster,function(delta)
@@ -1037,7 +1064,7 @@ local function MakeFrame()
     titleText:SetPoint("TOPLEFT",mainTop,"TOPLEFT",14,-11)
     countText=Label(mainTop,"",10,muted)
     countText:SetPoint("TOPLEFT",mainTop,"TOPLEFT",14,-37)
-    searchBox=Edit(frame,704,137,372,35,"Search gear, winner, zone...",function(s)
+    searchBox=Edit(frame,720,137,356,35,"Search gear, winner, zone...",function(s)
         searchText=T(s);listOffset=0;UI.Refresh()
     end)
     local filt=Panel(frame,284,193,803,41,{.05,.076,.12,1})
@@ -1048,6 +1075,11 @@ local function MakeFrame()
     filterButtons.armor=Button(filt,121,5,96,30,"Armor",function()SelectGearFilter("armor")end)
     filterButtons.weapons=Button(filt,223,5,96,30,"Weapons",function()SelectGearFilter("weapons")end)
     filterButtons.crafting=Button(filt,325,5,108,30,"Crafting",function()SelectGearFilter("crafting")end)
+    qualityFilterButton=Button(filt,439,5,122,30,"All rarities",function(self)
+        qualityMinimum=not qualityMinimum and 3 or qualityMinimum==3 and 4 or nil
+        self.label:SetText(qualityMinimum==3 and "Rare+" or qualityMinimum==4 and "Epic+" or "All rarities")
+        listOffset=0;UI.Refresh()
+    end)
     Button(filt,568,5,112,30,"Refresh",function()
         if gearFilter=="crafting" then
             if FLJ.Crafting and FLJ.Crafting.Scan then FLJ.Crafting.Scan() end
@@ -1059,6 +1091,17 @@ local function MakeFrame()
     Button(filt,686,5,107,30,"Clear log",function() FLJ.ShowClearConfirm() end)
     local list=Panel(frame,284,241,803,257,{.04,.063,.105,1})
     lootListPanel=list
+    local itemHeading=Label(list,"ITEM / TYPE",10,muted)
+    itemHeading:SetPoint("TOPLEFT",list,"TOPLEFT",52,-10)
+    local winnerHeading=Label(list,"WINNER / SOURCE & DATE",10,muted,"RIGHT")
+    winnerHeading:SetPoint("TOPLEFT",list,"TOPLEFT",458,-10)
+    winnerHeading:SetWidth(275)
+    Button(list,741,5,22,20,"^",function()
+        listOffset=math.max(0,listOffset-ITEM_VISIBLE);UI.Refresh()
+    end)
+    Button(list,769,5,22,20,"v",function()
+        listOffset=math.min(math.max(0,#FilteredLoot()-ITEM_VISIBLE),listOffset+ITEM_VISIBLE);UI.Refresh()
+    end)
     itemRows={}
     for i=1,ITEM_VISIBLE do itemRows[i]=MakeItemRow(list,i) end
     listEmpty=Label(list,"No matching loot yet. Items appear after your group obtains weapons or armor.",13,muted,"CENTER")
@@ -1109,3 +1152,4 @@ sizeWatch:SetScript("OnEvent",function()
     if frame and frame:IsShown() then FitWindow() end
 end)
 -- Minimap launcher is created only by Minimap.lua, to avoid duplicate buttons.
+

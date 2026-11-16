@@ -1,5 +1,18 @@
 # Forever Loot Journal
 
+## Version 1.4.0 - visible fantasy header and clearer journal
+
+- Fixes the opaque child panel that covered the title, custom banner and gold frame. The background now uses root textures, preserving the intended draw order.
+- Fixes rarity checkmarks being drawn behind their own checkbox backgrounds.
+- Uses clean body text, navy panels throughout Loot and Crafting, better item-detail spacing, and six compact loot rows instead of four.
+- Adds visible paging buttons for loot and players, record ranges, account totals, and an **All rarities / Rare+ / Epic+** archive filter. This viewing filter never changes rarity registration or deletes records.
+- Correctly highlights the initial item and rounds decimal stats to two places. Viewing rolls sorts a copy and leaves the recorded order intact.
+- Removes the native edit-box artwork that conflicted with the custom search fields. Settings cards fit within their panels.
+
+**Install:** Close WoW, extract the ZIP into `_forever_/Interface/AddOns/`, and replace the existing `ForeverLootJournal` folder. Keep your `WTF` folder to retain loot, players, recipes and preferences. Open with `/flj`; use the gear button for Settings.
+
+**Validation:** Existing addon tests plus regressions for header/checkmark layering, six-row display, selection, decimal stats and non-destructive rarity filtering. Layout previews are exported from actual addon widget construction with sample records; built-in game icons and fonts are approximated. Final appearance must be checked inside WoW Forever.
+
 ## Version 1.3.0 – full D-style modern World of Warcraft redesign
 
 This release rebuilds the **actual in-game addon interface** around the selected **Design D** mockup, not a standalone image.
@@ -310,3 +323,4 @@ This repository contains the addon source. It is not yet field-tested inside the
 MINIMAP SHORTCUT
 ----------------
 Left-click the round chest icon to open or close the journal. Alt-drag moves it around the minimap and remembers its position. If it is lost, type /flj reseticon.
+

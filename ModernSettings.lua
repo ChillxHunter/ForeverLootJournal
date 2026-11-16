@@ -1,4 +1,4 @@
--- Forever Loot Journal v1.3.0
+-- Forever Loot Journal v1.4.0
 -- D-inspired modern WoW settings. Presentation only; reuses Core.lua
 -- saved-variable APIs, so all loot and prior settings are preserved.
 local addonName, FLJ = ...
@@ -52,7 +52,7 @@ local function Panel(parent,x,y,w,h,color,edge)
 end
 local function Text(parent,str,x,y,size,color,width)
     local t=parent:CreateFontString(nil,"OVERLAY","GameFontNormal")
-    t:SetFont("Fonts\\FRIZQT__.TTF",size or 13,"OUTLINE")
+    t:SetFont((size or 13)>=17 and "Fonts\\FRIZQT__.TTF" or "Fonts\\ARIALN.TTF",size or 13,"")
     t:SetTextColor(Color(color or C.pale))
     t:SetPoint("TOPLEFT",parent,"TOPLEFT",x,-y)
     if width then t:SetWidth(width); t:SetJustifyH("LEFT") end
@@ -120,12 +120,12 @@ local function MakeRarities(parent,topLabel)
         TitleBlock(parent,"Rarity Registration (New Loot)",
             "Choose which rarities should be saved for future drops.")
     end
-    local area=Panel(parent,14,93,738,139,C.well,{.24,.34,.46,1})
+    local area=Panel(parent,14,93,722,139,C.well,{.24,.34,.46,1})
     for i,opt in ipairs(FLJ.RarityOptions or {}) do
         local rarityID=opt.id
         local rarityName=opt.label
         local color=opt.color
-        local b=Button(area,10+(i-1)*91,10,83,117,"",function()
+        local b=Button(area,8+(i-1)*89,10,81,117,"",function()
             if FLJ.SetRarityEnabled then
                 FLJ.SetRarityEnabled(rarityID,not FLJ.IsRarityEnabled(rarityID))
                 S.Refresh()
@@ -134,7 +134,7 @@ local function MakeRarities(parent,topLabel)
         b.rarityColor=color
         local check=Panel(b,26,19,31,31,C.well,{.43,.51,.60,1})
         check.base:SetColorTexture(.025,.04,.065,.9)
-        b.check=b:CreateTexture(nil,"OVERLAY")
+        b.check=check:CreateTexture(nil,"OVERLAY")
         b.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
         b.check:SetSize(40,40)
         b.check:SetPoint("CENTER",check,"CENTER",0,0)
@@ -238,7 +238,7 @@ end
 local function MakeStorage(parent)
     TitleBlock(parent,"Save Limit (PC Performance)",
         "Maximum number of loot records to keep on this account.")
-    local area=Panel(parent,13,91,741,168,C.well,{.23,.32,.43,1})
+    local area=Panel(parent,14,91,722,168,C.well,{.23,.32,.43,1})
     local colors={
         POTATO={.43,.70,1},NORMAL={.43,.70,1},
         STRONG={.43,.70,1}, MONSTER={1,.74,.22},EXTREME={.75,.42,1},
@@ -246,7 +246,7 @@ local function MakeStorage(parent)
     for i,key in ipairs(FLJ.StoragePresetOrder or {}) do
         local profile=key
         local entry=FLJ.StoragePresets[profile]
-        local b=Button(area,10+(i-1)*146,10,137,146,"",function()
+        local b=Button(area,10+(i-1)*142,10,134,146,"",function()
             ChooseStorage(profile)
         end)
         b.profile=profile
@@ -254,7 +254,7 @@ local function MakeStorage(parent)
         DrawMonitor(b,colors[profile])
         b.label:ClearAllPoints()
         b.label:SetPoint("TOPLEFT",b,"TOPLEFT",5,-70)
-        b.label:SetSize(127,27)
+        b.label:SetSize(124,27)
         b.label:SetJustifyH("CENTER")
         b.label:SetText(entry.label)
         b.limit=Text(b,Format(entry.limit),7,109,15,C.pale,122)
@@ -432,11 +432,15 @@ function S.Build(window)
         b.label:SetPoint("LEFT",b,"LEFT",53,0)
         b.label:SetSize(172,40)
         b.label:SetJustifyH("LEFT")
-        b.label:SetFont("Fonts\\FRIZQT__.TTF",15,"OUTLINE")
-        local emblem=Text(b,item[3],17,18,18,C.gold,28)
+        b.label:SetFont("Fonts\\ARIALN.TTF",16,"")
+        local icons={general="INV_Misc_Book_09",rarity="INV_Misc_Gem_01",storage="INV_Misc_Bag_10",display="INV_Misc_Spyglass_03",profiles="INV_Misc_GroupLooking"}
+        local emblem=b:CreateTexture(nil,"ARTWORK")
+        emblem:SetTexture("Interface\\Icons\\"..icons[id])
+        emblem:SetPoint("LEFT",b,"LEFT",15,0)
+        emblem:SetSize(26,26)
         navButtons[id]=b
     end
-    local bottom=Text(left,"v1.3.0  |  Settings save automatically",15,589,10,C.muted,245)
+    local bottom=Text(left,"v1.4.0  |  Settings save automatically",15,589,11,C.muted,245)
     Button(left,13,537,245,41,"Back to Journal",function() S.Hide() end)
     BuildGeneral()
     BuildRarityPage()
@@ -447,3 +451,4 @@ function S.Build(window)
     RefreshPages()
     S.Refresh()
 end
+
