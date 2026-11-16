@@ -1,5 +1,27 @@
 # Forever Loot Journal
 
+## Version 1.3.0 – full D-style modern World of Warcraft redesign
+
+This release rebuilds the **actual in-game addon interface** around the selected **Design D** mockup, not a standalone image.
+
+**New look:**
+- Custom dark-navy fantasy castle header with gold framing, improved spacing and compact top-right settings button.
+- The journal uses dark blue panels, cool metallic borders and gold active-tab highlights instead of the old beige/parchment textures.
+- **Settings** is an interactive screen with a left menu: **General, Rarity Filter, Storage, Display, Profiles**.
+- The **General** page matches the chosen mockup with eight rarity-toggle cards above five PC-capacity cards. Colored boxes indicate which qualities are saved.
+- **Rarity Filter** and **Storage** have dedicated explanations; **Display** controls player class colors, item hover tooltips and live group indicators; **Profiles** shows saved records, recipes and group statistics.
+- The five existing saved-item presets work from the cards: **Potato 1,000**, **Normal 2,000**, **Strong 3,000**, **MONSTER 5,000**, **EXTREME!! 10,000**. Lowering your limit still requires confirmation before old records are removed.
+- Rarity switches still affect **new loot only**. Already recorded items are neither removed nor hidden by rarity settings.
+- Loot searching, group-roll details, Crafting, cross-zone party synchronization, and right-click player actions remain available in the main journal.
+- Opening and closing Settings only changes presentation; existing `ForeverLootJournalDB` data is preserved.
+
+**How to use:** Enter `/flj`, click the **gear icon** in the top-right corner, then select **General** or a dedicated settings page. **Back to Journal** returns to the original loot, players and crafting views.
+
+**Download:** [Forever Loot Journal v1.3.0 installable ZIP](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.3.0/ForeverLootJournal.zip). It extracts directly to `ForeverLootJournal/` without the `-main` suffix. Exit WoW, replace the previous addon folder and keep the `WTF` SavedVariables directory to preserve your history.
+
+**Validation:** A Lua 5.1 UI simulation creates the actual window and settings controls, activates rarity/profile/display settings, checks the reduction-confirmation dialog, and returns to the journal. Actual rendering and texture/font sizing must still be checked inside WoW Forever.
+
+
 ## Version 1.2.7 – fixed repeat Ignore requests and "Saint Ramz" display mismatch
 
 - Matches WoW's server message name `Saint Ramz` to the journal's `Saint-Ramz`, without matching two different explicit realms.
