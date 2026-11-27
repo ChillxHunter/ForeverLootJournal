@@ -95,7 +95,8 @@ print=function(message) notices[#notices+1]=message end
 
 local slashFallbackCalls=0
 SlashCmdList={FOREVERLOOTJOURNAL=function() slashFallbackCalls=slashFallbackCalls+1 end}
-local addon={}
+local inspectedPlayer
+local addon={Inspect={Show=function(player) inspectedPlayer=player end}}
 assert(loadfile("Social.lua"))("ForeverLootJournal",addon)
 assert(socialFrame and socialFrame.events.PLAYER_LOGIN and socialFrame.events.IGNORELIST_UPDATE
     and socialFrame.events.CHAT_MSG_SYSTEM)
@@ -105,12 +106,14 @@ local name="Ranger-Realm"
 local player={name=name,current=false}
 assert(addon.ShowPlayerContextMenu("playerrow",player))
 assert(currentMenu.title==name)
-assert(#currentMenu.entries==5)
-for _,label in ipairs({"Whisper","Add Friend","Block Player (Ignore)","Invite to Party","Invite to Guild"}) do
+assert(#currentMenu.entries==6)
+for _,label in ipairs({"Whisper","Inspect Last Seen Gear","Add Friend","Block Player (Ignore)","Invite to Party","Invite to Guild"}) do
     local entry=currentMenu:Get(label)
     assert(entry and entry.enabled,"missing enabled action: "..label)
 end
 
+currentMenu:Get("Inspect Last Seen Gear").callback()
+assert(inspectedPlayer==player,"inspect action must receive the selected player")
 currentMenu:Get("Whisper").callback()
 assert(#whispers==1 and whispers[1]==name,"whisper did not open correct target")
 currentMenu:Get("Add Friend").callback()
