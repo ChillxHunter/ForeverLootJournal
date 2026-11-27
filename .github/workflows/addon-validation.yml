@@ -12,6 +12,7 @@ on:
       - 'tools/test_rarity.lua'
       - 'tools/test_social.lua'
       - 'tools/test_modern_ui.lua'
+      - 'tools/test_inspect.lua'
       - '.github/workflows/addon-validation.yml'
   pull_request:
     paths:
@@ -35,7 +36,7 @@ jobs:
       - name: Parse every addon Lua file
         run: |
           set -eu
-          for file in Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua; do
+          for file in Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua Inspect.lua; do
             echo "Checking $file"
             luac5.1 -p "$file"
           done
@@ -53,6 +54,8 @@ jobs:
         run: lua5.1 tools/test_social.lua
       - name: Test D-style modern WoW settings and navigation
         run: lua5.1 tools/test_modern_ui.lua
+      - name: Test remembered equipment inspection
+        run: lua5.1 tools/test_inspect.lua
       - name: Check addon manifest and images
         run: |
           python3 - <<'PY'
@@ -96,6 +99,9 @@ jobs:
           assert 'MinimapShortcut()' not in ui, 'Legacy minimap button must not be instantiated'
           assert 'modern_header' in ui and 'FLJ.SettingsUI.Build(frame)' in ui
           assert Path('ModernSettings.lua').exists() and Path('tools/test_modern_ui.lua').exists()
+          assert Path('Inspect.lua').exists() and Path('tools/test_inspect.lua').exists()
+          social = Path('Social.lua').read_text(encoding='utf-8')
+          assert 'Inspect Last Seen Gear' in social
           assert Path('Media/modern_header.tga').exists()
           assert 'r:RegisterForClicks("LeftButtonUp","RightButtonUp")' in ui
           assert 'FLJ.ShowPlayerContextMenu(self,self.player)' in ui
