@@ -1,4 +1,4 @@
--- Forever Loot Journal v1.2.7 - WoW Forever social menu.
+-- Forever Loot Journal v1.3.1 - WoW Forever social menu.
 -- Uses the live WoW ignore list, not a parallel addon-maintained block list.
 local addonName, FLJ = ...
 local Social={}
@@ -348,6 +348,13 @@ function FLJ.ShowPlayerContextMenu(owner,player)
         local selfTarget=IsSelf(name)
         MenuOption(root,"Whisper",not selfTarget,function()
             Social.Whisper(player)
+        end)
+        MenuOption(root,"Inspect Last Seen Gear",not selfTarget,function()
+            if FLJ.Inspect and FLJ.Inspect.Show then
+                FLJ.Inspect.Show(player)
+            else
+                Notice("Gear inspection is unavailable on this client.")
+            end
         end)
         local friend=Social.IsFriend(name)
         MenuOption(root,friend and "Already Friends" or "Add Friend",
