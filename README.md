@@ -1,5 +1,23 @@
 # Forever Loot Journal
 
+## Version 1.3.1 – Inspect Last Seen Gear
+
+**New:** Right-click a character in **Party & Raid Members** and choose **Inspect Last Seen Gear**.
+
+- The addon periodically inspects **nearby, eligible party/raid members** while you are grouped. It requests data from WoW's built-in `NotifyInspect` API only when inspection range and permissions allow it, and reads the returned equipment on `INSPECT_READY`.
+- Gear snapshots are saved automatically in account-wide SavedVariables at `ForeverLootJournalDB.inspections`, separate from the loot archive and PC preset item limits.
+- The viewer lists all **19 equipment slots** with item icons, names, hyperlinks, and a timestamp and zone showing when you last inspected that player.
+- You can open saved gear from **another zone or map**. It is clearly labeled **historical**, and does not claim to show live equipped items while the player is out of range.
+- When the group member is nearby again, the addon can refresh the equipment snapshot. The viewer also has an **Inspect Again (Nearby)** button to request a fresh snapshot.
+- Gear updates are throttled (18 seconds globally, no more often than every 3 minutes per nearby player) to limit disruption to the game's inspection API.
+- Inspection is skipped during combat and while Blizzard's standard Inspect window is open. Wrong GUID responses and empty inspect results do not overwrite good saved snapshots.
+- Up to **250** most recently inspected characters are retained, independently of loot-history limits.
+
+**Limits:** Players who were never inspected while in range have no saved snapshot. WoW's inspect API must provide gear information; you cannot inspect an unreachable party member for the first time. This feature does not read other players' private inventory or bags, and it does not require other players to install Forever Loot Journal.
+
+**Install:** [Forever Loot Journal v1.3.1](https://github.com/ChillxHunter/ForeverLootJournal/releases/download/v1.3.1/ForeverLootJournal.zip). Download the prepared release ZIP instead of GitHub's "Code → Download ZIP"; it extracts to `ForeverLootJournal/` without `-main`. Exit WoW, replace the previous addon folder and retain the `WTF` SavedVariables files to preserve your loot records.
+
+
 ## Version 1.3.0 – full D-style modern World of Warcraft redesign
 
 This release rebuilds the **actual in-game addon interface** around the selected **Design D** mockup, not a standalone image.
