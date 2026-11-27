@@ -8,6 +8,7 @@ on:
       - 'UI.lua'
       - 'Crafting.lua'
       - 'ModernSettings.lua'
+      - 'Inspect.lua'
       - 'Minimap.lua'
       - 'ForeverLootJournal.toc'
       - 'README.md'
@@ -19,6 +20,7 @@ on:
       - 'tools/test_rarity.lua'
       - 'tools/test_social.lua'
       - 'tools/test_modern_ui.lua'
+      - 'tools/test_inspect.lua'
       - '.github/workflows/package-addon.yml'
   workflow_dispatch:
 
@@ -47,6 +49,7 @@ jobs:
           luac5.1 -p Crafting.lua
           luac5.1 -p Social.lua
           luac5.1 -p ModernSettings.lua
+          luac5.1 -p Inspect.lua
           lua5.1 tools/test_minimap.lua
           lua5.1 tools/test_sync.lua
           lua5.1 tools/test_storage.lua
@@ -54,8 +57,9 @@ jobs:
           lua5.1 tools/test_rarity.lua
           lua5.1 tools/test_social.lua
           lua5.1 tools/test_modern_ui.lua
+          lua5.1 tools/test_inspect.lua
           mkdir -p dist/ForeverLootJournal
-          cp Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua ForeverLootJournal.toc dist/ForeverLootJournal/
+          cp Core.lua UI.lua Minimap.lua Sync.lua Crafting.lua Social.lua ModernSettings.lua Inspect.lua ForeverLootJournal.toc dist/ForeverLootJournal/
           cp -R Media dist/ForeverLootJournal/
           cp README.md dist/ForeverLootJournal/
           (
